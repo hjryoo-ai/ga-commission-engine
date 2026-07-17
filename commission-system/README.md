@@ -23,7 +23,7 @@
 | 모듈 | 내용 |
 |---|---|
 | commission-domain | Money(BigDecimal, scale 0)/Rate/RoundingPolicy, 값객체, PolicyEvent |
-| commission-rule | effective-dated RuleRepository(기준일 필수 규약), 요율 승인 워크플로(DRAFT→ACTIVE→SUPERSEDED) |
+| commission-rule | effective-dated RuleRepository(기준일 필수 규약), 요율 승인 워크플로(DRAFT→ACTIVE→SUPERSEDED), 시책 마스터(INCENTIVE_MST)·SpEL 조건식 엔진(SimpleEvaluationContext 샌드박스)·시책 승인 워크플로(요율과 동형 diff 감사) |
 | commission-calc | 계산 파이프라인(Step 체인, Step 목록도 유효기간 설정), COMM_CALC 불변 원장 포트, Reversal&Rebook, replay |
 | commission-limit | 1200% 한도 원장(LIMIT_LEDGER+DTL), LimitGateStep, 감액 재산정, 취소분개 원복 훅 |
 | commission-clawback | 환수 Step(경과 회차 구간 환수율), 부활 재지급, 채권화·자동 상계 |
@@ -46,7 +46,7 @@
 6. **한도 락 규약(§6.1.6)**: 게이트 판정 전 원장 `SELECT FOR UPDATE` 획득, 저장 후 훅 전기·커밋까지 유지. posting_seq는 락 보유 상태에서만 채번, 정렬 기준은 posting_seq만(posted_at 금지).
 7. **fail-fast(부록 B-13)**: 필수 룰 데이터(over_limit_action 등) 누락 시 침묵 기본값 대신 계산 거부. 정책 기본값을 코드에 심지 않는다.
 
-## 테스트 (292건 = 단위/H2 204 + Oracle 통합 88)
+## 테스트 (333건 = 단위/H2 237 + Oracle 통합 96)
 
 - 골든 케이스: 신계약/회차/시책, 2026-06-30↔07-01 한도 경계, 한도 임박·초과·환수 복원, 13회차 전후 해약·철회·부활, 소급 요율 변경 reversal&rebook, 마감→지급 사이클, 분급 4년→7년 데이터 교체.
 - Property(jqwik): Money 산술, 한도 불변식(accum ≤ limit, accum = ΣDTL), 분급 스케줄 합 = 이연 원금.
@@ -62,4 +62,6 @@
 
 - **REST 컨트롤러 슬라이스(Phase 12)**: MockMvc standalone으로 파사드 위 얇은 컨트롤러 검증. **순액 API가 reversal 시나리오(마감 전 정정 3종 공존)에서 정확**(NetAmountCalculator 경유 → 상태 필터 이중 차감 −135,000 재현 안 됨), 금액 long·마감월 yyyyMM·날짜 ISO 직렬화 고정, fail-fast 예외의 4xx 매핑(내부 상세 비노출), 승인 API 실승인자 필수·"system" 거부. 상태 필터 SUM 부재는 소스 스캔 아키텍처 테스트로 고정(§3.0).
 
-설계 판단 근거와 잔여 과제는 `../설계고찰.md` 참고 (Phase 11 완료 기록은 §8).
+- **시책 조건식 엔진(Phase 13)**: SpEL 조건식을 **SimpleEvaluationContext(데이터 바인딩 전용) 샌드박스**에서만 평가 — `T()`·빈·생성자·메서드 호출·대입 거부를 금지 구문 테스트 20종으로 고정(관리자 입력이 코드 실행 통로가 되지 않음). 조건식 등록만으로 신규 시책 반영(재배포 없음), 요율 승인 패턴 재사용(트리밍/SUPERSEDE·diff 감사·겹침 불변식, 인메모리+Oracle 계약), IncentiveV2(30)<LimitGate(50) 순서로 한도 편입, 사용 시책 버전 rule_versions 박제·판정 calc_trace 기록(replay), 등록·평가 fail-fast.
+
+설계 판단 근거와 잔여 과제는 `../설계고찰.md` 참고 (Phase 11 완료 기록은 §8, Phase 13은 §10).

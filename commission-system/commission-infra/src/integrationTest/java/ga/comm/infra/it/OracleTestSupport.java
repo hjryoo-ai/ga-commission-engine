@@ -90,6 +90,7 @@ public final class OracleTestSupport {
                 "LIMIT_LEDGER_DTL", "LIMIT_LEDGER_HIST", "LIMIT_LEDGER",
                 "INBOUND_STATEMENT",
                 "COMM_CALC", "POLICY_EVENT", "SETTLE_CLOSE",
+                "INCENTIVE_CHANGE_HIST", "INCENTIVE_MST",
                 "COMM_RATE_CHANGE_HIST", "COMM_RATE", "LIMIT_RULE",
                 "COMM_TYPE_MST", "AGENT_PAYOUT_RATE",
                 "DEFERRAL_CURVE_DTL", "DEFERRAL_CURVE", "CLAWBACK_RULE", "ORG_OVERRIDE_RATE",

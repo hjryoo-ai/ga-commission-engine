@@ -90,6 +90,7 @@ public final class OraclePersistence {
         configuration.addMapper(InboundStatementMapper.class);
         configuration.addMapper(RuleQueryMapper.class);
         configuration.addMapper(CommRateAdminMapper.class);
+        configuration.addMapper(ga.comm.infra.mapper.IncentiveAdminMapper.class);
         configuration.addMapper(AgentDirectoryMapper.class);
         configuration.addMapper(CloseReportMapper.class);
 
@@ -159,6 +160,16 @@ public final class OraclePersistence {
 
     public CommRateAdminStore commRateAdminStore() {
         return new OracleCommRateAdminStore(session.getMapper(CommRateAdminMapper.class));
+    }
+
+    public ga.comm.rule.admin.IncentiveAdminStore incentiveAdminStore() {
+        return new ga.comm.infra.store.OracleIncentiveAdminStore(
+                session.getMapper(ga.comm.infra.mapper.IncentiveAdminMapper.class));
+    }
+
+    public ga.comm.rule.IncentiveRepository incentiveRepository() {
+        return new ga.comm.infra.store.OracleIncentiveRepository(
+                session.getMapper(ga.comm.infra.mapper.IncentiveAdminMapper.class));
     }
 
     public AgentDirectory agentDirectory() {

@@ -48,7 +48,8 @@ class FlywayMigrationTest {
                 "SETTLE_CLOSE", "ADJUSTMENT",
                 "AGENT_MST", "AGENT_GRADE_HIST", "ORG_MST", "AGENT_ORG_HIST", "ORG_OVERRIDE_RATE",
                 "AGENT_SETTLEMENT", "AGENT_SETTLEMENT_CALC", "INBOUND_STATEMENT",
-                "COMM_RATE_CHANGE_HIST"
+                "COMM_RATE_CHANGE_HIST",
+                "INCENTIVE_MST", "INCENTIVE_CHANGE_HIST"
         ));
     }
 

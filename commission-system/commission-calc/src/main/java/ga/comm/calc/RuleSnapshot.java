@@ -94,6 +94,14 @@ public final class RuleSnapshot {
         return found;
     }
 
+    /**
+     * 스냅샷이 직접 조회하지 않는 룰(예: 시책 마스터 — Step이 별도 저장소로 해석)의 버전 참조를
+     * 박제 목록에 편입한다. 재현성(§6.5 replay)을 위해 계산에 <b>실제 사용된</b> 버전만 넣는다.
+     */
+    public void recordRuleVersion(RuleVersionRef ref) {
+        used.add(ref);
+    }
+
     public List<RuleVersionRef> usedRuleVersions() {
         return Collections.unmodifiableList(used);
     }
