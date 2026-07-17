@@ -40,25 +40,31 @@ public class RateApprovalService {
         return draft;
     }
 
+    /** 시드/테스트 대역 승인 — "system"으로 기록한다(§6.6 실명 요건의 예외 경로). */
     public CommRateRule approve(long rateId) {
-        return approve(rateId, "system");
+        return approveInternal(rateId, "system");
     }
 
     /**
-     * 승인: DRAFT를 ACTIVE로 전이하고, 기간이 겹치는 기존 ACTIVE 버전을 정리한다.
-     * <ul>
-     *   <li>기존 버전이 신규 개시일보다 먼저 시작 → 종료일을 신규 개시일 전날로 트리밍</li>
-     *   <li>기존 버전이 신규 기간에 완전히 덮임 → SUPERSEDED</li>
-     *   <li>신규 기간이 기존 버전을 분할(기존이 신규 종료 후에도 계속) → 미지원, 승인 거부</li>
-     * </ul>
-     * 모든 교체는 승인자와 함께 저장되어 룰 변경 이력에 남는다 (§6.6 트리밍 감사).
+     * 운영 승인 — DRAFT를 ACTIVE로 전이하고 겹치는 기존 ACTIVE 버전을 정리한다.
      *
-     * <p>동시성(§6.6 v1.1.2): 같은 키의 동시 승인 2건은 이 검사를 둘 다 통과할 수 있다.
-     * 최종 심판은 DB의 function-based unique index이며, 인덱스 위반은 예외가 아니라
-     * 정상 경합이다 — 호출측(어댑터 러너)이 최신 상태 재조회 후 재검증(재시도)하거나
-     * 명시적으로 거부한다.
+     * <p><b>실승인자 필수(§6.6, 서비스 계층 강제)</b>: {@code approvedBy}는 실명이어야 한다 — 빈 값·
+     * "system"은 거부한다. 컨트롤러의 principal 검증에 더한 <b>심층 방어</b>다: 기술 계정 principal이
+     * "system"으로 들어오거나 컨트롤러를 거치지 않는 호출(러너·배치)이 있어도, 승인 기록이 시드/테스트
+     * 대역("system")과 뒤섞이지 않는다. 시드/테스트는 인자 없는 {@link #approve(long)}를 쓴다.
+     *
+     * <p>정리 규칙: 기존 버전이 신규 개시일보다 먼저 시작 → 종료일 트리밍 / 신규 기간에 완전히 덮임 →
+     * SUPERSEDED / 기존을 분할(신규 종료 후에도 계속) → 미지원, 거부. 교체는 승인자와 함께 이력에 남는다.
+     *
+     * <p>동시성(§6.6): 같은 키 동시 승인 2건은 이 검사를 둘 다 통과할 수 있다. 최종 심판은 DB의
+     * function-based unique index이며, 위반은 정상 경합으로 러너가 재조회·재검증(재시도)하거나 거부한다.
      */
     public CommRateRule approve(long rateId, String approvedBy) {
+        ApproverPolicy.requireReal(approvedBy);
+        return approveInternal(rateId, approvedBy.trim());
+    }
+
+    private CommRateRule approveInternal(long rateId, String approvedBy) {
         CommRateRule draft = store.findById(rateId)
                 .orElseThrow(() -> new IllegalArgumentException("요율이 존재하지 않습니다: " + rateId));
         if (draft.status() != RateStatus.DRAFT) {

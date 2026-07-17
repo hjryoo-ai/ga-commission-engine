@@ -62,6 +62,8 @@ public class IncentiveApprovalService {
     }
 
     public IncentiveRule approve(long incentiveId, String approvedBy) {
+        // 실승인자 필수(§6.6, 서비스 계층 심층 방어) — 빈 값·"system" 거부(요율과 동일 규약)
+        ApproverPolicy.requireReal(approvedBy);
         IncentiveRule draft = store.findById(incentiveId)
                 .orElseThrow(() -> new IllegalArgumentException("시책이 없습니다: " + incentiveId));
         if (draft.status() != RateStatus.DRAFT) {

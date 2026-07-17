@@ -94,6 +94,27 @@ class RateApprovalServiceTest {
     }
 
     @Test
+    void 운영_승인은_실명이어야_한다_blank_system_거부() {
+        long id = draftFrom(LocalDate.of(2026, 1, 1), "7.0").rateId();
+        // 운영 경로(2-arg, 컨트롤러/러너/배치): §6.6 실명 요건을 서비스 계층이 강제 — 심층 방어
+        assertThatThrownBy(() -> service.approve(id, "system"))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("실명");
+        assertThatThrownBy(() -> service.approve(id, "System"))  // 대소문자 무관(기술 계정 방어)
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.approve(id, "  "))
+                .isInstanceOf(IllegalArgumentException.class);
+        // 실명은 승인된다
+        assertThat(service.approve(id, "김승인").status()).isEqualTo(RateStatus.ACTIVE);
+    }
+
+    @Test
+    void 시드_대역_1arg_승인은_system을_허용한다() {
+        // 인자 없는 오버로드 = 시드/테스트 대역 — "system" 기록이 허용된다(운영 검증의 예외 경로)
+        long id = draftFrom(LocalDate.of(2026, 1, 1), "7.0").rateId();
+        assertThat(service.approve(id).status()).isEqualTo(RateStatus.ACTIVE);
+    }
+
+    @Test
     void 승인_후에도_겹치는_ACTIVE는_존재하지_않는다() {
         service.approve(draftFrom(LocalDate.of(2026, 1, 1), "7.0").rateId());
         service.approve(draftFrom(LocalDate.of(2026, 9, 1), "6.5").rateId());

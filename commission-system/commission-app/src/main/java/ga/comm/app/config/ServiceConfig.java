@@ -28,9 +28,14 @@ import ga.comm.settlement.MonthCloseService;
 import ga.comm.settlement.PayoutService;
 import ga.comm.settlement.SettleCloseStore;
 import ga.comm.settlement.WithholdingTaxPolicy;
+import ga.comm.app.support.PlaceholderPolicyStatusProvider;
+import ga.comm.app.support.PolicyStatusProviderGuard;
 import ga.comm.shadow.ShadowRunService;
+import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 
 import java.util.List;
 
@@ -64,13 +69,21 @@ public class ServiceConfig {
     }
 
     /**
-     * 분급 유지 조건 판정 — <b>운영 placeholder</b>. 실 운영에서는 계약 상태 원장(실효/해약/부활)을
-     * 조회해 도래 시점의 유지 여부를 판정해야 한다. 현재는 항상 유지로 두며, 실 판정 연동은 운영 전환
-     * 체크리스트 항목이다(§8.5 이후). 스모크·마감 경로(분급 미도래)에는 영향이 없다.
+     * 분급 유지 조건 판정 — <b>운영 placeholder</b>(항상 유지). 실 판정(계약 상태 원장 조회)은 운영 전환
+     * 항목(§12)이다. <b>운영(prod)에서 이 placeholder면 기동이 실패한다</b>({@link #policyStatusProviderGuard}) —
+     * "항상-유지"가 실효 계약에도 분급을 지급 투입하는 것을 구조로 차단한다(문서 표시만으로는 불충분).
      */
     @Bean
     public PolicyStatusProvider policyStatusProvider() {
-        return (policyNo, asOf) -> true;
+        return new PlaceholderPolicyStatusProvider();
+    }
+
+    /** 운영 배포 안전 가드 — prod + placeholder면 컨텍스트 초기화 마무리에서 기동 실패시킨다. */
+    @Bean
+    public SmartInitializingSingleton policyStatusProviderGuard(PolicyStatusProvider provider,
+                                                               Environment environment) {
+        boolean prod = environment.acceptsProfiles(Profiles.of("prod"));
+        return () -> PolicyStatusProviderGuard.verifyProductionSafe(provider, prod);
     }
 
     @Bean

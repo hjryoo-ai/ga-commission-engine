@@ -44,6 +44,17 @@ public abstract class IncentiveApprovalContract {
     }
 
     @Test
+    void 운영_승인은_실명이어야_한다_blank_system_거부() {
+        long id = inTx(() -> draft("VALID-CD", JAN).incentiveId());
+        // §6.6 실명 요건을 서비스 계층이 강제(요율과 동일) — 기술 계정 principal "system" 심층 방어
+        assertThatThrownBy(() -> inTx(() -> service().approve(id, "system")))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("실명");
+        assertThatThrownBy(() -> inTx(() -> service().approve(id, " ")))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThat(inTx(() -> service().approve(id, "정산팀장")).status()).isEqualTo(RateStatus.ACTIVE);
+    }
+
+    @Test
     void 승인은_기존_ACTIVE를_트리밍하고_전후값과_승인자를_이력으로_남긴다() {
         long v1 = inTx(() -> service().approve(draft("Q1-PUSH", JAN).incentiveId(), "팀장A")).incentiveId();
         long v2 = inTx(() -> service().approve(draft("Q1-PUSH", JUN).incentiveId(), "팀장B")).incentiveId();
