@@ -43,6 +43,8 @@ dependencies {
     "integrationTestImplementation"(testFixtures(project(":commission-settlement")))
     "integrationTestImplementation"(testFixtures(project(":commission-inbound")))
     "integrationTestImplementation"(project(":commission-batch"))
+    "integrationTestImplementation"(project(":commission-shadow")) // 섀도 런 실 Oracle 경로 IT
+
     "integrationTestImplementation"("org.testcontainers:oracle-free")
     "integrationTestImplementation"("com.zaxxer:HikariCP")
     "integrationTestRuntimeOnly"("com.oracle.database.jdbc:ojdbc11")

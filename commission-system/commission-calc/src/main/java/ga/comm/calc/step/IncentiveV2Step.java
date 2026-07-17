@@ -9,6 +9,7 @@ import ga.comm.domain.id.CommTypeCode;
 import ga.comm.domain.money.Money;
 import ga.comm.domain.money.Rate;
 import ga.comm.domain.type.EventType;
+import ga.comm.rule.AmbiguousRuleException;
 import ga.comm.rule.IncentiveRepository;
 import ga.comm.rule.incentive.IncentiveConditionEvaluator;
 import ga.comm.rule.incentive.IncentiveConditionInput;
@@ -19,6 +20,7 @@ import ga.comm.rule.RuleNotFoundException;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * 시책 계산 V2 (설계서 §3.6, Phase 13) — 시책 조건을 <b>데이터(INCENTIVE_MST)로</b> 판정한다.
@@ -70,6 +72,20 @@ public class IncentiveV2Step implements CalculationStep {
         if (candidates.isEmpty()) {
             return;
         }
+
+        // fail-fast(부록 B-13 확장): 같은 incentive_cd에 적용 가능한 ACTIVE가 2건 이상이면 겹침 —
+        // 승인 워크플로 불변식(코드당 단건 ACTIVE) 위반이다. 침묵하고 아무거나 고르거나 둘 다 편입(이중
+        // 지급)하지 않고 계산을 거부한다. 인덱스(ux_incentive_active)는 "같은 개시일"만 막으므로,
+        // 개시일이 다른 겹침 경합(동시 승인 등)은 이 마개가 닫는다 — 겹침이 어떻게 생기든 돈은 안 움직인다.
+        candidates.stream()
+                .collect(Collectors.groupingBy(IncentiveRule::incentiveCd, Collectors.counting()))
+                .forEach((cd, count) -> {
+                    if (count > 1) {
+                        throw new AmbiguousRuleException("같은 시책 코드에 적용 가능한 ACTIVE가 "
+                                + count + "건입니다(겹침): incentiveCd=" + cd
+                                + " 기준일=" + event.eventDate());
+                    }
+                });
 
         // 시책 유형 속성(한도 포함/반올림)은 대상 시책이 있을 때만 필요 — 없으면 fail-fast.
         CommTypeAttr attr = ctx.rules().commTypeAttr(CommTypeCode.INCENTIVE)

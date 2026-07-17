@@ -9,6 +9,7 @@ import ga.comm.calc.store.CommCalcRecord;
 import ga.comm.domain.id.CommTypeCode;
 import ga.comm.domain.id.PolicyNo;
 import ga.comm.domain.money.Money;
+import ga.comm.rule.AmbiguousRuleException;
 import ga.comm.rule.admin.IncentiveApprovalService;
 import ga.comm.rule.fixture.InMemoryIncentiveStore;
 import ga.comm.rule.fixture.RuleFixtures;
@@ -144,6 +145,24 @@ class IncentiveV2StepTest {
                 .filter(r -> r.commType().equals(CommTypeCode.INCENTIVE))
                 .map(CommCalcRecord::calcAmount).reduce(Money.ZERO, Money::plus);
         assertThat(first).isEqualTo(Money.won(500_000)).isEqualTo(second);
+    }
+
+    @Test
+    void 같은_코드에_겹치는_ACTIVE_시책이_둘이면_계산을_거부한다() {
+        // 개시일이 다른 겹침 경합(ux_incentive_active가 못 막는 종류 — 동시 승인 등)을 직접 삽입(승인 우회).
+        // 룰 해석이 "하나여야 하는 게 둘"이면 아무거나 고르거나 둘 다 편입(이중 지급)하지 않고 시끄럽게 실패한다.
+        incentives.insert(new IncentiveRule(incentives.nextIncentiveId(), "DUP",
+                RuleFixtures.INSURER, RuleFixtures.PRODUCT, null, "premium >= 0",
+                PayoutKind.FIXED, Money.won(500_000), null,
+                EffectivePeriod.from(LocalDate.of(2026, 1, 1)), 1L, RateStatus.ACTIVE));
+        incentives.insert(new IncentiveRule(incentives.nextIncentiveId(), "DUP",
+                RuleFixtures.INSURER, RuleFixtures.PRODUCT, null, "premium >= 0",
+                PayoutKind.FIXED, Money.won(700_000), null,
+                EffectivePeriod.from(LocalDate.of(2026, 6, 1)), 2L, RateStatus.ACTIVE));
+
+        assertThatThrownBy(() -> processNew(Map.of()))
+                .isInstanceOf(AmbiguousRuleException.class)
+                .hasMessageContaining("DUP");
     }
 
     @Test

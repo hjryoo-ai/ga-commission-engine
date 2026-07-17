@@ -9,6 +9,7 @@ include(
     "commission-clawback",
     "commission-inbound",
     "commission-recon",
+    "commission-shadow",
     "commission-settlement",
     "commission-batch",
     "commission-api",
