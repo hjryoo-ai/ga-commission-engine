@@ -1,0 +1,10 @@
+﻿field,value
+id,21_초년도윈도우_밖_미적용
+title,한도 골든 — 초년도 윈도우(12개월) 밖 이벤트는 한도 게이트를 타지 않는다
+axis,한도경계
+features,LIMIT
+insurer,SAMLIFE
+product,WHOLE-LIFE-20Y
+agent,A-1001
+premium,300000
+note,계약 2026-08-01의 초년도 윈도우는 2027-07-31까지 — 이후 회차 시책은 게이트 미적용(원장 불변)

@@ -1,0 +1,10 @@
+﻿field,value
+id,12_해약_13회차_환수없음
+title,환수 골든 — 13회차 경과 해약은 환수 구간 밖(환수 없음)
+axis,13회차전후;해약
+features,CLAWBACK
+insurer,SAMLIFE
+product,WHOLE-LIFE-20Y
+agent,A-1001
+premium,300000
+note,환수 밴드(0~12회차) 밖이라 환수 레코드가 없고 원장 누적은 2,133,000 그대로

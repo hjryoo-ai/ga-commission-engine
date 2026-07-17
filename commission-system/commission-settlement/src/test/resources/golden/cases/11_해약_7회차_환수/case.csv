@@ -1,0 +1,10 @@
+﻿field,value
+id,11_해약_7회차_환수
+title,환수 골든 — 7회차 경과 해약 40% 환수, 한도 원장 차감
+axis,13회차전후;해약
+features,CLAWBACK
+insurer,SAMLIFE
+product,WHOLE-LIFE-20Y
+agent,A-1001
+premium,300000
+note,순기지급 2,133,000 × 40% = 853,200 환수(음수 레코드), 원장 누적 1,279,800

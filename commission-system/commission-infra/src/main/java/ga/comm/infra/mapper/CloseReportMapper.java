@@ -26,6 +26,29 @@ public interface CloseReportMapper {
             """)
     List<String> overlappingActiveRates();
 
+    /**
+     * 룰 완결성 ①-b: 같은 incentive_cd + 대상 필터에 유효기간이 겹치는 ACTIVE 시책 쌍 (§6.6, Phase 14).
+     * 요율(overlappingActiveRates)과 동형 — 단 시책의 대상 필터는 nullable(NULL=전체)이라 NVL 동치로 비교한다.
+     * function-based unique index(ux_incentive_active)는 같은 개시일만 막으므로, 개시일이 달라도 기간이
+     * 겹치는 경우(수기 등록 등)를 이 리포트가 비차단 안전망으로 검출한다.
+     */
+    @Select("""
+            SELECT 'INCENTIVE_MST 겹치는 ACTIVE: incentive ' || a.incentive_id || '/' || b.incentive_id
+                   || ' — ' || a.incentive_cd || ' ' || NVL(a.insurer_cd, '*') || ' '
+                   || NVL(a.product_key, '*') || ' ' || NVL(a.channel, '*')
+              FROM INCENTIVE_MST a
+              JOIN INCENTIVE_MST b
+                ON a.incentive_cd = b.incentive_cd
+               AND NVL(a.insurer_cd, '*') = NVL(b.insurer_cd, '*')
+               AND NVL(a.product_key, '*') = NVL(b.product_key, '*')
+               AND NVL(a.channel, '*') = NVL(b.channel, '*')
+               AND a.incentive_id < b.incentive_id
+             WHERE a.status = 'ACTIVE' AND b.status = 'ACTIVE'
+               AND a.apply_from <= b.apply_to AND b.apply_from <= a.apply_to
+             ORDER BY 1
+            """)
+    List<String> overlappingActiveIncentives();
+
     /** 룰 완결성 ②: 같은 (등급×유형)에 유효기간이 겹치는 지급률 (PK가 겹침을 막지 못한다). */
     @Select("""
             SELECT 'AGENT_PAYOUT_RATE 겹침: ' || a.grade_cd || ' ' || a.comm_type

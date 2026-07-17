@@ -1,0 +1,10 @@
+﻿field,value
+id,08_한도_소진_전액이연
+title,한도 골든 — 소진 후 회차·시책 전액 이연(0원 근거 라인)
+axis,한도임박초과
+features,LIMIT
+insurer,SAMLIFE
+product,WHOLE-LIFE-20Y
+agent,A-1001
+premium,300000
+note,한도 소진 뒤엔 한도 포함 유형이 전액 이연되고 0원 지급 레코드로 근거가 남는다

@@ -1,0 +1,3 @@
+﻿event,recipientType,recipientId,commType,calcAmount,limitCut
+E3,AGENT,A-1001,FY_COMM,0,40500
+E3,AGENT,A-1001,INCENTIVE,0,500000

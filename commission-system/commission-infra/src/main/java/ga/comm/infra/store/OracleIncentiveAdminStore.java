@@ -2,10 +2,12 @@ package ga.comm.infra.store;
 
 import ga.comm.infra.mapper.IncentiveAdminMapper;
 import ga.comm.rule.admin.IncentiveAdminStore;
+import ga.comm.rule.admin.IncentiveApprovalConflictException;
 import ga.comm.rule.admin.IncentiveChangeEntry;
 import ga.comm.rule.model.IncentiveKey;
 import ga.comm.rule.model.IncentiveRule;
 import ga.comm.rule.model.RateStatus;
+import org.springframework.dao.DuplicateKeyException;
 
 import java.util.List;
 import java.util.Objects;
@@ -47,7 +49,17 @@ public class OracleIncentiveAdminStore implements IncentiveAdminStore {
         }
         IncentiveRule before = OracleIncentiveRepository.toRule(lockedRow);
 
-        mapper.updatePeriodAndStatus(rule.incentiveId(), rule.period().applyTo(), rule.status().name());
+        try {
+            mapper.updatePeriodAndStatus(rule.incentiveId(), rule.period().applyTo(),
+                    rule.status().name());
+        } catch (DuplicateKeyException conflict) {
+            // ux_incentive_active 위반 = 같은 코드·개시일의 ACTIVE 시책이 이미 존재(동시 승인 경합).
+            // 요율은 재시도 러너가 이 시점의 스프링 예외를 잡아 재판정하지만, 시책 러너는 후속 Phase다 —
+            // 지금은 명시적 409(경합 거부)로 번역만 한다(raw 500 누출 차단, §6.6).
+            throw new IncentiveApprovalConflictException(
+                    "시책 승인 경합: 같은 코드·개시일의 ACTIVE 시책이 이미 존재합니다 (incentiveId="
+                            + rule.incentiveId() + ", cd=" + before.incentiveCd() + ")", conflict);
+        }
         if (before.status() != RateStatus.ACTIVE && rule.status() == RateStatus.ACTIVE) {
             mapper.recordApproval(rule.incentiveId(), changedBy);
         }

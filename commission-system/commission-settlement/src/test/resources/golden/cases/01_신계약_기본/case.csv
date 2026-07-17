@@ -1,0 +1,10 @@
+﻿field,value
+id,01_신계약_기본
+title,신계약 골든 — 표준 월납 30만원 계약 (설계서 부록 A)
+axis,신계약
+features,
+insurer,SAMLIFE
+product,WHOLE-LIFE-20Y
+agent,A-1001
+premium,300000
+note,신계약 성립 시 모집수수료(지급률 적용)와 조직 오버라이드 3계층 배분

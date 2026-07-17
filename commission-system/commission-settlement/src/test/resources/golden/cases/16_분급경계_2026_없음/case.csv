@@ -1,0 +1,10 @@
+﻿field,value
+id,16_분급경계_2026_없음
+title,분급 경계 골든 — 2026 체결은 분급 미적용(전액 즉시)
+axis,분급전후
+features,DEFERRAL
+insurer,SAMLIFE
+product,WHOLE-LIFE-20Y
+agent,A-1001
+premium,300000
+note,분급 커브(2027 시행)가 계약일에 없으므로 FY 전액 즉시 지급(1,890,000)

@@ -1,0 +1,10 @@
+﻿field,value
+id,07_한도_임박_초과_삭감
+title,한도 골든(부록 A형) — 한도 임박 시 시책 잔여분만 지급, 초과분 이연
+axis,한도임박초과
+features,LIMIT
+insurer,SAMLIFE
+product,WHOLE-LIFE-20Y
+agent,A-1001
+premium,300000
+note,누적 2,890,000 + 회차 40,500 후 시책 800,000 중 669,500만 지급(130,500 이연)

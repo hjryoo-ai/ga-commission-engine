@@ -1,0 +1,10 @@
+﻿field,value
+id,06_한도경계_0701_적용
+title,한도 경계 골든 — 2026-07-01 체결은 원장 개설, 한도=월납×12
+axis,한도경계
+features,LIMIT
+insurer,SAMLIFE
+product,WHOLE-LIFE-20Y
+agent,A-1001
+premium,300000
+note,시행일 당일 체결은 한도룰 적용 — 원장 개설·한도 3,600,000

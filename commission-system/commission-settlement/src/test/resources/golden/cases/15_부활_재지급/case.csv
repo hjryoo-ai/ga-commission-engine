@@ -1,0 +1,10 @@
+﻿field,value
+id,15_부활_재지급
+title,환수 골든 — 부활(REPAY 정책)은 환수분 재지급, 원장 재가산
+axis,부활
+features,CLAWBACK
+insurer,SAMLIFE
+product,WHOLE-LIFE-20Y
+agent,A-1001
+premium,300000
+note,7회차 해약 환수(853,200) 후 부활 → 853,200 재지급(+), 원장 누적 2,133,000 복귀

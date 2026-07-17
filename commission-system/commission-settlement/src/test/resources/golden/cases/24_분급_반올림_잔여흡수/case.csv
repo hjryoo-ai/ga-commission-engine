@@ -1,0 +1,10 @@
+﻿field,value
+id,24_분급_반올림_잔여흡수
+title,분급 골든 — 나누어 떨어지지 않는 분급은 마지막 포인트가 잔여를 흡수
+axis,분급전후
+features,DEFERRAL
+insurer,SAMLIFE
+product,WHOLE-LIFE-20Y
+agent,A-1001
+premium,333333
+note,월납 333,333 → FY 2,099,997 → 즉시 839,998 / 이연 419,999·419,999·420,001(합 1,259,999)

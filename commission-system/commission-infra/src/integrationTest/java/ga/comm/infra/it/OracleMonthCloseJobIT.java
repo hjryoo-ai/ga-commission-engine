@@ -72,6 +72,8 @@ class OracleMonthCloseJobIT {
 
         // 리포트 ① 씨앗: 같은 키에 유효기간이 겹치는 ACTIVE 요율 2건 (수기 등록 시나리오 — 앱 계층 우회)
         seedOverlappingActiveRates();
+        // 리포트 ①-b 씨앗: 같은 코드에 유효기간이 겹치는 ACTIVE 시책 2건 (Phase 14 — 시책 겹침 검출 확장)
+        seedOverlappingActiveIncentives();
         // 리포트 ② 씨앗: 연 파티션(p2028) 밖의 close_ym → pmax 적재
         seedPmaxRow();
         // 리포트 ③ 씨앗: 같은 rate에 ACTIVATE 직후 SUPERSEDE (근접 동시 승인 흔적)
@@ -110,6 +112,7 @@ class OracleMonthCloseJobIT {
         var jobCtx = forced.execution().getExecutionContext();
         assertThat(jobCtx.getString(MonthCloseJobFactory.CTX_REPORT_PREFIX + "룰 데이터 완결성"))
                 .contains("COMM_RATE 겹치는 ACTIVE: rate 900001/900002")
+                .contains("INCENTIVE_MST 겹치는 ACTIVE: incentive 950001/950002")
                 .contains("COMM_TYPE_MST 누락: FY_COMM");
         assertThat(jobCtx.getString(MonthCloseJobFactory.CTX_REPORT_PREFIX + "MAXVALUE 파티션 적재"))
                 .contains("close_ym 202901");
@@ -175,6 +178,24 @@ class OracleMonthCloseJobIT {
                     INSERT INTO COMM_RATE (rate_id, direction, insurer_cd, product_key, comm_type,
                         installment_no, rate, apply_from, version_no, status)
                     VALUES (?, 'OUTBOUND', 'SAMLIFE', 'RPT-OVERLAP', 'INCENTIVE', NULL, 1, ?, 1, 'ACTIVE')
+                    """, ps -> {
+                ps.setLong(1, seed[0]);
+                String ymd = String.valueOf(seed[1]);
+                ps.setDate(2, Date.valueOf(LocalDate.of(Integer.parseInt(ymd.substring(0, 4)),
+                        Integer.parseInt(ymd.substring(4, 6)), Integer.parseInt(ymd.substring(6)))));
+            });
+        }
+    }
+
+    private void seedOverlappingActiveIncentives() {
+        // 개시일을 다르게(01-01 / 06-01) 두어 ux_incentive_active(같은 개시일만 차단)를 통과시키되,
+        // apply_to 기본값(9999-12-31)으로 기간이 겹치게 만든다 — 리포트가 검출해야 할 상태.
+        for (long[] seed : List.of(new long[]{950001, 20260101}, new long[]{950002, 20260601})) {
+            JdbcRuleSeeder.execute(OracleTestSupport.dataSource(), """
+                    INSERT INTO INCENTIVE_MST (incentive_id, incentive_cd, insurer_cd, product_key,
+                        channel, condition_expr, payout_kind, fixed_amount, apply_from, version_no, status)
+                    VALUES (?, 'RPT-INC-OVERLAP', NULL, NULL, NULL, 'premium >= 0', 'FIXED', 100000,
+                        ?, 1, 'ACTIVE')
                     """, ps -> {
                 ps.setLong(1, seed[0]);
                 String ymd = String.valueOf(seed[1]);

@@ -1,0 +1,5 @@
+﻿step,ref,type,policyNo,eventDate,contractDate,installment,premium,payment,attrs,amount,note
+EVENT,E1,NEW,POL-2026-0001,2026-08-01,2026-08-01,,300000,,incentive_amount=1000000,,
+EVENT,E2,PAYMENT,POL-2026-0001,2026-09-05,2026-08-01,2,300000,300000,incentive_amount=800000,,여기서 한도 소진
+DEDUCT_CLAWBACK,,,POL-2026-0001,2026-10-01,,,,,,600000,환수 60만 차감
+EVENT,E4,PAYMENT,POL-2026-0001,2026-11-05,2026-08-01,4,300000,300000,incentive_amount=400000,,복원 여유 내 지급

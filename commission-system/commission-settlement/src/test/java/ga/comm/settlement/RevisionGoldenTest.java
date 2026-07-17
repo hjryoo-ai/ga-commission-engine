@@ -36,10 +36,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Phase 5 골든 케이스 (설계서 §10): 소급 요율 변경 시나리오 전체.
+ * 소급 요율 변경(reversal &amp; rebook)의 <b>불변식·거동·replay</b> 테스트 (설계서 §10, §8.2).
  *
- * <p>기대값 — 원 요율 7.0: FY 1,890,000. 소급 요율 6.5: 300,000×6.5×0.9 = 1,755,000.
- * 오버라이드: 2,100,000×5% = 105,000 → 1,950,000×5% = 97,500.
+ * <p>소급 정정 후 <b>순액 골든 값</b>(FY 1,755,000, 오버라이드 97,500)은 CSV 골든셋으로 이관됐다
+ * (Phase 14 — {@code golden/cases/20_소급정정_reversal_rebook}, NET 합산). 이 파일에는 값이 아니라
+ * 거동을 고정하는 테스트만 남긴다: 재계산 값 멱등성, reversal 멱등, 마감월 귀속, replay 재현·소급 검출,
+ * reversal 합계 불변식. (골든셋과 별개로 존치.)
  */
 class RevisionGoldenTest {
 
@@ -80,41 +82,6 @@ class RevisionGoldenTest {
                         && r.commType().equals(commType))
                 .map(CommCalcRecord::calcAmount)
                 .reduce(Money.ZERO, Money::plus);
-    }
-
-    @Test
-    @DisplayName("골든: 소급 요율 변경 — reversal + rebook 후 순액과 원장이 새 요율 기준으로 수렴한다")
-    void 소급_요율_변경_전체_시나리오() {
-        CommissionCalculator calculator = harness.calculator();
-        PolicyEvent stored = processNewContract(calculator);
-        approveRetroactiveRate();
-
-        RevisionService.RebookResult result =
-                revision.rebookEvent(stored, calculator, "소급 요율 변경 7.0→6.5");
-
-        // 원본 4건(설계사 1 + 오버라이드 3) 전부 reversal
-        assertThat(result.reversals()).hasSize(4);
-        assertThat(result.rebooked()).hasSize(4);
-
-        // 설계사 순액 = 1,890,000 − 1,890,000 + 1,755,000
-        assertThat(netAmount(RecipientType.AGENT, EventFixtures.AGENT_A.value(), CommTypeCode.FY_COMM))
-                .isEqualTo(Money.won(1_755_000));
-        // 팀 오버라이드 순액 = 97,500
-        assertThat(netAmount(RecipientType.ORG, "T1", CommTypeCode.OVERRIDE))
-                .isEqualTo(Money.won(97_500));
-
-        // 원본은 REVERSED 마킹, reversal은 원본 참조
-        List<CommCalcRecord> all = harness.calcStore.all();
-        assertThat(all.stream().filter(r -> r.status() == CalcStatus.REVERSED)).hasSize(4);
-        assertThat(result.reversals()).allSatisfy(r -> {
-            assertThat(r.reversalOf()).isNotNull();
-            assertThat(r.calcAmount().isNegative()).isTrue();
-        });
-
-        // 한도 원장도 새 요율 기준으로 수렴 + 불변식 유지
-        LimitLedger ledger = ledgers.find(EventFixtures.POLICY_1, EventFixtures.AGENT_A).orElseThrow();
-        assertThat(ledger.accumPaid()).isEqualTo(Money.won(1_755_000));
-        assertThat(ledger.invariantHolds()).isTrue();
     }
 
     @Test

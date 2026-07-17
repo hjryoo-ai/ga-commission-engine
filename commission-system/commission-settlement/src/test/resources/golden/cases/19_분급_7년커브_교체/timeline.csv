@@ -1,0 +1,2 @@
+﻿step,ref,type,policyNo,eventDate,contractDate,installment,premium,payment,attrs,note
+EVENT,E1,NEW,POL-2029-0001,2029-02-01,2029-02-01,,300000,,,2029 체결

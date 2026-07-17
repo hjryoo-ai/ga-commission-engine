@@ -1,0 +1,4 @@
+﻿step,ref,type,policyNo,eventDate,contractDate,installment,premium,payment,attrs,note
+EVENT,E1,NEW,POL-2026-0001,2026-08-01,2026-08-01,,300000,,incentive_amount=1000000,
+EVENT,E2,PAYMENT,POL-2026-0001,2026-09-05,2026-08-01,2,300000,300000,incentive_amount=800000,
+EVENT,E3,PAYMENT,POL-2026-0001,2026-10-05,2026-08-01,3,300000,300000,incentive_amount=500000,소진 후

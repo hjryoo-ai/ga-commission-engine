@@ -1,0 +1,4 @@
+﻿step,ref,type,policyNo,eventDate,contractDate,installment,premium,payment,attrs,commType,rate,applyFrom,targetRef,note
+EVENT,E1,NEW,POL-2026-0001,2026-08-01,2026-08-01,,300000,,,,,,,신계약
+APPROVE_RATE,,,,,,,,,,FY_COMM,6.5,2026-08-01,,소급 요율 인하 승인
+REBOOK,RB,,,,,,,,,,,,E1,마감 전 재계산

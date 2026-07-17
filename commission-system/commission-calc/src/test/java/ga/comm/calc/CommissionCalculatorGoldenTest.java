@@ -3,28 +3,23 @@ package ga.comm.calc;
 import ga.comm.calc.fixture.CalcTestHarness;
 import ga.comm.calc.fixture.EventFixtures;
 import ga.comm.calc.store.CommCalcRecord;
-import ga.comm.domain.id.CommTypeCode;
-import ga.comm.domain.money.Money;
 import ga.comm.domain.type.CalcStatus;
 import ga.comm.domain.type.RecipientType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.time.LocalDate;
 import java.util.List;
-import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Phase 2 골든 케이스 (설계서 §10): 신계약/회차입금.
+ * 계산 파이프라인의 <b>불변식·거동</b> 테스트 (설계서 §10).
  *
- * <p>픽스처 기준 기대값 —
- * 신계약(월납 300,000): FY_COMM 성립 요율 7.0 → 2,100,000 × 지급률 0.9 = 1,890,000.
- * 오버라이드: 원수수료 2,100,000 기준 팀 5%=105,000, 지점 3%=63,000, 본부 2%=42,000.
- * 5회차 입금(300,000): 요율 0.15 → 45,000 × 0.9 = 40,500.
- * 13회차 입금: RENEWAL 0.02 → 6,000 × 0.9 = 5,400.
+ * <p>신계약/회차입금/시책의 <b>골든 값</b> 케이스는 CSV 골든셋으로 이관됐다(Phase 14 —
+ * {@code commission-settlement/src/test/resources/golden/cases/01,02,03,04}). 이 파일에는 값이
+ * 아니라 거동을 고정하는 테스트만 남긴다: 멱등 수신, 근거(rule_versions·calc_trace) 박제, 불변 원장
+ * 상태 전이. (골든셋과 별개로 존치하는 성질의 테스트다.)
  */
 class CommissionCalculatorGoldenTest {
 
@@ -33,70 +28,6 @@ class CommissionCalculatorGoldenTest {
     @BeforeEach
     void setUp() {
         harness = new CalcTestHarness();
-    }
-
-    @Test
-    @DisplayName("골든: 신계약 체결 — 설계사 본인 + 조직 오버라이드 3건")
-    void 신계약_골든_케이스() {
-        List<CommCalcRecord> records = harness.calculator().process(EventFixtures.newContract());
-
-        assertThat(records).hasSize(4);
-
-        CommCalcRecord agentLine = records.stream()
-                .filter(r -> r.recipientType() == RecipientType.AGENT).findFirst().orElseThrow();
-        assertThat(agentLine.commType()).isEqualTo(CommTypeCode.FY_COMM);
-        assertThat(agentLine.baseAmount()).isEqualTo(Money.won(300_000));
-        assertThat(agentLine.calcAmount()).isEqualTo(Money.won(1_890_000));
-        assertThat(agentLine.status()).isEqualTo(CalcStatus.CALCULATED);
-        assertThat(agentLine.closeYm().value()).isEqualTo("202608");
-
-        List<CommCalcRecord> overrides = records.stream()
-                .filter(r -> r.recipientType() == RecipientType.ORG).toList();
-        assertThat(overrides).extracting(CommCalcRecord::recipientId)
-                .containsExactlyInAnyOrder("T1", "B1", "H1");
-        assertThat(overrides).extracting(r -> r.calcAmount().toLong())
-                .containsExactlyInAnyOrder(105_000L, 63_000L, 42_000L);
-        assertThat(overrides).allSatisfy(r ->
-                assertThat(r.commType()).isEqualTo(CommTypeCode.OVERRIDE));
-    }
-
-    @Test
-    @DisplayName("골든: 5회차 입금 — 초년도 회차 요율")
-    void 회차입금_초년도_골든_케이스() {
-        List<CommCalcRecord> records = harness.calculator()
-                .process(EventFixtures.payment(5, LocalDate.of(2026, 12, 5)));
-
-        CommCalcRecord agentLine = records.stream()
-                .filter(r -> r.recipientType() == RecipientType.AGENT).findFirst().orElseThrow();
-        assertThat(agentLine.commType()).isEqualTo(CommTypeCode.FY_COMM);
-        assertThat(agentLine.calcAmount()).isEqualTo(Money.won(40_500));
-        assertThat(agentLine.closeYm().value()).isEqualTo("202612");
-    }
-
-    @Test
-    @DisplayName("골든: 13회차 입금 — 계속수수료로 폴백")
-    void 회차입금_계속수수료_골든_케이스() {
-        List<CommCalcRecord> records = harness.calculator()
-                .process(EventFixtures.payment(13, LocalDate.of(2027, 9, 5)));
-
-        CommCalcRecord agentLine = records.stream()
-                .filter(r -> r.recipientType() == RecipientType.AGENT).findFirst().orElseThrow();
-        assertThat(agentLine.commType()).isEqualTo(CommTypeCode.RENEWAL);
-        assertThat(agentLine.calcAmount()).isEqualTo(Money.won(5_400));
-    }
-
-    @Test
-    @DisplayName("시책: 이벤트 속성으로 전달된 시책 금액이 INCENTIVE 라인으로 편입된다")
-    void 시책_라인_편입() {
-        List<CommCalcRecord> records = harness.calculator().process(
-                EventFixtures.newContract(EventFixtures.POLICY_1, EventFixtures.CONTRACT_DATE,
-                        EventFixtures.MONTHLY_PREMIUM, Map.of("incentive_amount", "1000000")));
-
-        List<CommCalcRecord> incentives = records.stream()
-                .filter(r -> r.commType().equals(CommTypeCode.INCENTIVE)).toList();
-        assertThat(incentives).hasSize(1);
-        assertThat(incentives.get(0).calcAmount()).isEqualTo(Money.won(1_000_000));
-        assertThat(incentives.get(0).recipientType()).isEqualTo(RecipientType.AGENT);
     }
 
     @Test

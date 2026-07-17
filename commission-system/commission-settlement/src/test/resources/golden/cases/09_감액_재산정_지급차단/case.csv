@@ -1,0 +1,10 @@
+﻿field,value
+id,09_감액_재산정_지급차단
+title,감액 골든 — 신한도가 기지급 아래로 내려가면 향후 지급 차단
+axis,감액
+features,LIMIT
+insurer,SAMLIFE
+product,WHOLE-LIFE-20Y
+agent,A-1001
+premium,300000
+note,월납 30만→10만 감액 시 한도 3,600,000→1,200,000, 기지급 1,890,000 유지 → 여유 0

@@ -1,0 +1,3 @@
+﻿step,ref,type,policyNo,eventDate,contractDate,installment,premium,payment,attrs,note
+EVENT,E1,NEW,POL-BOUNDARY-0630,2026-06-30,2026-06-30,,300000,,incentive_amount=9000000,6/30 체결
+EVENT,E2,PAYMENT,POL-BOUNDARY-0630,2026-08-05,2026-06-30,2,300000,300000,incentive_amount=9000000,시행 후 회차라도 미적용

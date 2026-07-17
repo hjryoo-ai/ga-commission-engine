@@ -1,0 +1,10 @@
+﻿field,value
+id,13_실효_5회차_환수
+title,환수 골든 — 5회차 경과 실효 70% 환수
+axis,13회차전후;실효
+features,CLAWBACK
+insurer,SAMLIFE
+product,WHOLE-LIFE-20Y
+agent,A-1001
+premium,300000
+note,순기지급 2,133,000 × 70% = 1,493,100 환수

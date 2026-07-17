@@ -87,6 +87,29 @@ class OracleDdlFeaturesIT {
     }
 
     @Test
+    void 같은_키_같은_개시일의_ACTIVE_시책_중복은_인덱스가_차단한다() throws Exception {
+        // 요율 ux_comm_rate_active와 동형(V102). 대상 필터를 전부 NULL(전체 대상)로 두어,
+        // NVL('*') 래핑이 없으면 새어나갈 "두 NULL은 서로 다르다" 경로까지 함께 차단됨을 증명한다.
+        String insert = """
+                INSERT INTO INCENTIVE_MST (incentive_cd, insurer_cd, product_key, channel,
+                    condition_expr, payout_kind, fixed_amount, apply_from, version_no, status)
+                VALUES ('PUSH-1', NULL, NULL, NULL, 'premium >= 0', 'FIXED', 100000,
+                    DATE '2026-01-01', 1, '%s')
+                """;
+        try (Connection c = OracleTestSupport.dataSource().getConnection();
+             Statement s = c.createStatement()) {
+            s.executeUpdate(insert.formatted("ACTIVE"));
+            // 비ACTIVE는 인덱스 대상이 아니므로 얼마든지 공존한다
+            s.executeUpdate(insert.formatted("DRAFT"));
+            s.executeUpdate(insert.formatted("SUPERSEDED"));
+
+            assertThatThrownBy(() -> s.executeUpdate(insert.formatted("ACTIVE")))
+                    .isInstanceOf(SQLException.class)
+                    .hasMessageContaining("UX_INCENTIVE_ACTIVE");
+        }
+    }
+
+    @Test
     void over_limit_action_누락은_데이터_계층에서도_거부된다() throws Exception {
         // 모델 계층 fail-fast(부록 B-13)의 DDL 이중화 — NOT NULL
         try (Connection c = OracleTestSupport.dataSource().getConnection();

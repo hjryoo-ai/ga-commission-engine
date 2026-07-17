@@ -1,0 +1,10 @@
+﻿field,value
+id,23_해약시_잔여스케줄_소멸
+title,분급 골든 — 해약은 잔여 SCHEDULED를 CANCELLED로 소멸(RELEASED는 유지)
+axis,분급전후;해약
+features,DEFERRAL
+insurer,SAMLIFE
+product,WHOLE-LIFE-20Y
+agent,A-1001
+premium,300000
+note,도래 1건(RELEASED) 후 해약 → 남은 2건 CANCELLED, 이미 지급된 1건은 유지

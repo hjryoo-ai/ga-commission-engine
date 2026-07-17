@@ -1,0 +1,10 @@
+﻿field,value
+id,14_청약철회_전액환수
+title,환수 골든 — 청약철회는 기지급 전액 환수, 원장 0
+axis,철회
+features,CLAWBACK
+insurer,SAMLIFE
+product,WHOLE-LIFE-20Y
+agent,A-1001
+premium,300000
+note,철회는 100% 환수 → 2,133,000 전액, 원장 누적 0

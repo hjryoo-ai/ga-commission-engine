@@ -1,0 +1,2 @@
+﻿step,ref,type,policyNo,eventDate,contractDate,installment,premium,payment,attrs,note
+EVENT,E1,PAYMENT,POL-2026-0001,2027-09-05,2026-08-01,13,300000,300000,,13회차 입금

@@ -1,0 +1,10 @@
+﻿field,value
+id,19_분급_7년커브_교체
+title,분급 골든 — 2029 체결은 7년 커브(데이터만 교체, 코드 무수정)
+axis,분급전후
+features,DEFERRAL
+insurer,SAMLIFE
+product,WHOLE-LIFE-20Y
+agent,A-1001
+premium,300000
+note,즉시 30% 567,000 + 7회 각 189,000(1,323,000). 커브를 데이터로 바꾸는 것만으로 동작

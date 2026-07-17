@@ -1,6 +1,6 @@
 # GA 설계사 수수료 계산 시스템
 
-[`docs/설계서.md`](docs/설계서.md)(v1.1.5, 단일 원본)의 구현. 룰은 코드가 아니라 데이터(유효기간 버전), 계산 결과는 불변 원장(취소분개로만 정정), 1200% 한도는 지급 파이프라인의 게이트.
+[`docs/설계서.md`](docs/설계서.md)(v1.1.8, 단일 원본)의 구현. 룰은 코드가 아니라 데이터(유효기간 버전), 계산 결과는 불변 원장(취소분개로만 정정), 1200% 한도는 지급 파이프라인의 게이트.
 
 ## 빌드/테스트
 
@@ -32,7 +32,7 @@
 | commission-inbound | 보험사 명세 어댑터(파일럿: SAMLIFE CSV), 멱등 저장 |
 | commission-recon | 대사(명세 vs 자체계산) — 차이 유형화(MATCH/요율차/누락/미인지) |
 | commission-api | 수수료 시뮬레이션(예상 수수료·한도 소진·분급 즉시분), 조회 파사드, REST 컨트롤러 슬라이스(조회/시뮬레이션/승인 — 순액은 NetAmountCalculator 경유, 금액 long·날짜 ISO 직렬화, fail-fast 예외 4xx 매핑, 승인 실승인자 필수). 풀 부트 조립은 '운영 조립' Phase로 이연 |
-| commission-infra | Flyway 스키마(V1~V9 + Oracle 전용 V100/V101), MyBatis Oracle 어댑터(트랜잭션 Store 9종 + 룰 조회/승인/설계사 디렉토리 + 마감 리포트), 한도 원장 SELECT FOR UPDATE 직렬화 + posting_seq 락 하 채번, 승인 동시성 러너(인덱스 위반 → 재시도/거부, §6.6), 트리밍 감사 이력(COMM_RATE_CHANGE_HIST), OraclePersistence(트랜잭션 경계 §4.2 [3.5]~[5.5]) |
+| commission-infra | Flyway 스키마(V1~V11 공통 + Oracle 전용 V100/V101/V102), MyBatis Oracle 어댑터(트랜잭션 Store 9종 + 룰·시책 조회/승인/설계사 디렉토리 + 마감 리포트), 한도 원장 SELECT FOR UPDATE 직렬화 + posting_seq 락 하 채번, 요율 승인 동시성 러너(인덱스 위반 → 재시도/거부, §6.6) + 시책 ACTIVE 유니크 인덱스 `ux_incentive_active`(V102, 위반 → 409 명시 번역, 러너는 이연), 트리밍 감사 이력(COMM_RATE·INCENTIVE_CHANGE_HIST), 마감 완결성 리포트(요율·시책 겹침), OraclePersistence(트랜잭션 경계 §4.2 [3.5]~[5.5]) |
 | commission-batch | Spring Batch 5 잡 배선 — 월마감/지급 런/분급 도래/재계산 4종. JobInstance 기반 요청 dedup, 항목 단위 트랜잭션(계산·지급 잡이 한도 락을 청크 전체에 걸쳐 잡지 않도록 Resourceless 스텝 TM + 반복당 업무 트랜잭션), 실패 격리(RuntimeException=격리·Error=전체 중단), BATCH_* 메타테이블 Flyway(V101) |
 
 ## 핵심 규약 (전 모듈 공통)
@@ -46,7 +46,7 @@
 6. **한도 락 규약(§6.1.6)**: 게이트 판정 전 원장 `SELECT FOR UPDATE` 획득, 저장 후 훅 전기·커밋까지 유지. posting_seq는 락 보유 상태에서만 채번, 정렬 기준은 posting_seq만(posted_at 금지).
 7. **fail-fast(부록 B-13)**: 필수 룰 데이터(over_limit_action 등) 누락 시 침묵 기본값 대신 계산 거부. 정책 기본값을 코드에 심지 않는다.
 
-## 테스트 (333건 = 단위/H2 237 + Oracle 통합 96)
+## 테스트 (336건 = 단위/H2 238 + Oracle 통합 98)
 
 - 골든 케이스: 신계약/회차/시책, 2026-06-30↔07-01 한도 경계, 한도 임박·초과·환수 복원, 13회차 전후 해약·철회·부활, 소급 요율 변경 reversal&rebook, 마감→지급 사이클, 분급 4년→7년 데이터 교체.
 - Property(jqwik): Money 산술, 한도 불변식(accum ≤ limit, accum = ΣDTL), 분급 스케줄 합 = 이연 원금.
@@ -64,4 +64,7 @@
 
 - **시책 조건식 엔진(Phase 13)**: SpEL 조건식을 **SimpleEvaluationContext(데이터 바인딩 전용) 샌드박스**에서만 평가 — `T()`·빈·생성자·메서드 호출·대입 거부를 금지 구문 테스트 20종으로 고정(관리자 입력이 코드 실행 통로가 되지 않음). 조건식 등록만으로 신규 시책 반영(재배포 없음), 요율 승인 패턴 재사용(트리밍/SUPERSEDE·diff 감사·겹침 불변식, 인메모리+Oracle 계약), IncentiveV2(30)<LimitGate(50) 순서로 한도 편입, 사용 시책 버전 rule_versions 박제·판정 calc_trace 기록(replay), 등록·평가 fail-fast.
 
-설계 판단 근거와 잔여 과제는 `../설계고찰.md` 참고 (Phase 11 완료 기록은 §8, Phase 13은 §10).
+- **골든셋 CSV 외부화(Phase 14)**: §8.1 대표 축 골든 케이스를 **자기완결 CSV 번들**로 외부화(`commission-settlement/src/test/resources/golden/`, 작성 규약 `golden/README.md`). 케이스 하나=폴더 하나(룰 시드+타임라인+기대), 공유 시드 무의존(규정 변경=신규 케이스 추가). `GoldenCsvRunnerTest`가 CSV를 스캔해 **전체 파이프라인 경유**(Step 우회 금지)로 대조, 불일치는 정산 담당자가 읽는 diff로 출력, **CSV 추가만으로 CI 편입(코드 0)**·실패=빌드 실패. 24 케이스(신계약·회차·시책·한도·감액·환수·분급·소급정정) 이관, JUnit 골든값 원본 제거(거동·property·계약·동시성은 존치).
+- **시책 승인 동시성 최종 심판(Phase 14 선행)**: `ux_incentive_active`(V102 Oracle) — 요율 동형, 시책 필터 nullable이라 `NVL('*')` 래핑. 인덱스 위반 → `IncentiveApprovalConflictException`(→409) 명시 번역, 마감 완결성 리포트 시책 겹침 검출 확장(재시도 러너·인터리빙 IT는 이연).
+
+설계 판단 근거와 잔여 과제는 `../설계고찰.md` 참고 (Phase 11 완료 기록은 §8, Phase 13은 §10, Phase 14는 §11).

@@ -1,0 +1,4 @@
+﻿step,ref,type,policyNo,eventDate,contractDate,installment,premium,payment,attrs,dueYm,note
+EVENT,E1,NEW,POL-2027-0001,2027-06-01,2027-06-01,,300000,,,,2027 체결
+RELEASE,R1,,,,,,,,,202806,1건 도래
+EVENT,C1,CANCEL,POL-2027-0001,2028-07-15,2027-06-01,13,300000,,,,해약

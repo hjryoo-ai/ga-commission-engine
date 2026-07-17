@@ -1,0 +1,10 @@
+﻿field,value
+id,10_환수_후_한도복원
+title,한도 복원 골든 — 환수로 원장 차감분만큼 한도 여유 회복
+axis,한도임박초과;환수
+features,LIMIT
+insurer,SAMLIFE
+product,WHOLE-LIFE-20Y
+agent,A-1001
+premium,300000
+note,한도 소진 상태에서 60만 환수 차감 → 여유 60만 회복 → 새 시책 40만 전액 지급

@@ -1,0 +1,2 @@
+﻿step,ref,type,policyNo,eventDate,contractDate,installment,premium,payment,attrs,note
+EVENT,E1,NEW,POL-BOUNDARY-0701,2026-07-01,2026-07-01,,300000,,,7/1 체결

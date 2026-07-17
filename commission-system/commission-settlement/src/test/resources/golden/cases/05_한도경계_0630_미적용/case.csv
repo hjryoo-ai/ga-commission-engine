@@ -1,0 +1,10 @@
+﻿field,value
+id,05_한도경계_0630_미적용
+title,한도 경계 골든 — 2026-06-30 체결은 1200%룰 미적용(삭감 0)
+axis,한도경계
+features,LIMIT
+insurer,SAMLIFE
+product,WHOLE-LIFE-20Y
+agent,A-1001
+premium,300000
+note,한도룰(2026-07-01 시행)이 계약 체결일에 없으므로 삭감이 일어나지 않는다(경계는 룰 기준일이 만든다)

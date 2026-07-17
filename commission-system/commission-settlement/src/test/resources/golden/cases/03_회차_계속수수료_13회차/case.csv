@@ -1,0 +1,10 @@
+﻿field,value
+id,03_회차_계속수수료_13회차
+title,계속수수료 골든 — 13회차 입금은 RENEWAL(2차년도)
+axis,회차입금;13회차전후
+features,
+insurer,SAMLIFE
+product,WHOLE-LIFE-20Y
+agent,A-1001
+premium,300000
+note,13회차부터는 초년도 모집수수료가 아니라 계속수수료(RENEWAL)로 계산된다
