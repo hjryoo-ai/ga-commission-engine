@@ -1,0 +1,51 @@
+name: CI
+
+# 2단 CI (설계서 §8 테스트 전략 + 저장소 협업 규약):
+#  - 빠른 티어(모든 푸시/PR): 단위·H2·아키텍처·골든셋 — Docker 불필요, 수 초~수십 초.
+#  - 풀 티어(PR + main): Oracle Testcontainers IT + 기동 스모크 — Docker 필요, 수 분.
+# dependency verification은 wrapper가 gradle/verification-metadata.xml로 항상 강제한다
+# (신뢰 아티팩트만 통과). 이 파일은 초안이니 러너 환경(이미지 캐시 등)에 맞춰 조정할 것.
+
+on:
+  push:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  TZ: Asia/Seoul            # 결정론 — close_ym·기준일 산정이 환경 타임존에 흔들리지 않게
+
+defaults:
+  run:
+    working-directory: commission-system   # Gradle 빌드는 이 하위에 있다
+
+jobs:
+  fast:
+    name: 빠른 티어 (단위/H2 + 골든셋)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build (Docker 테스트 제외)
+        run: ./gradlew build -x :commission-infra:integrationTest -x :commission-app:test --no-daemon
+
+  full:
+    name: 풀 티어 (Oracle IT + 기동 스모크)
+    runs-on: ubuntu-latest    # GitHub-hosted 러너는 Docker 내장 → Testcontainers 동작
+    # PR과 main 머지에서만 — oracle-free 이미지(~6GB) 기동 비용 때문에 매 푸시엔 돌리지 않는다.
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Full build (Testcontainers Oracle)
+        run: ./gradlew build --no-daemon
