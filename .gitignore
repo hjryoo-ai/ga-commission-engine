@@ -1,0 +1,16 @@
+# Gradle / 빌드 산출물
+.gradle/
+build/
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+
+# OS
+.DS_Store
+
+# Claude Code 로컬 설정 (머신별) — 공유 설정(.claude/settings.json, agents/, skills/)은 커밋 대상
+.claude/settings.local.json
