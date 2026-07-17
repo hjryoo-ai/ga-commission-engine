@@ -186,4 +186,10 @@ public final class OraclePersistence {
         return new OracleRateApprovalRunner(txTemplate,
                 new RateApprovalService(commRateAdminStore()));
     }
+
+    /** 시책 승인 동시성 러너(§6.6) — 요율과 동형, lock-then-revalidate 재시도. */
+    public ga.comm.infra.store.OracleIncentiveApprovalRunner incentiveApprovalRunner() {
+        return new ga.comm.infra.store.OracleIncentiveApprovalRunner(txTemplate,
+                new ga.comm.rule.admin.IncentiveApprovalService(incentiveAdminStore()));
+    }
 }

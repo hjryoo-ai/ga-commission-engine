@@ -14,4 +14,5 @@ include(
     "commission-batch",
     "commission-api",
     "commission-infra",
+    "commission-app",
 )

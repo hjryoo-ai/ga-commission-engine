@@ -119,6 +119,18 @@ class DisclosureServiceTest {
         assertThat(ranks.get(0).net()).isEqualTo(Money.won(900_000));
     }
 
+    @Test
+    void 등급_정책은_교체_가능하다_순위_로직은_그대로다() {
+        // 절대 임계 정책(800,000 이상 A, 아니면 C)으로 갈아끼우면 3분위와 다른 등급이 나온다
+        GradingPolicy absolute = (rank, total, value) -> value.toLong() >= 800_000 ? "A" : "C";
+        List<RankingService.CommissionRank> ranks =
+                new RankingService(absolute).rank(extract(), CommTypeCode.FY_COMM);
+
+        // 순위 순서는 정책과 무관하게 동일, 등급만 달라진다 (900k→A, 700k→C, 500k→C)
+        assertThat(ranks).extracting(RankingService.CommissionRank::rank).containsExactly(1, 2, 3);
+        assertThat(ranks).extracting(RankingService.CommissionRank::grade).containsExactly("A", "C", "C");
+    }
+
     // ---- 시드 헬퍼 ----
 
     private long seedEvent(String insurer, String product, String policyNo) {

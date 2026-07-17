@@ -10,6 +10,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * 대형 GA 비교설명 데이터 (설계서 §1 — 500인 이상 의무, Phase 15). 상품×보험사별 수수료 순액으로
@@ -17,9 +18,21 @@ import java.util.Map;
  * 순수 데이터이며, 공시와 마찬가지로 표시 서식은 확정 시 {@link DisclosureFormat}류로 갈아끼운다.
  *
  * <p>순액은 {@link DisclosureAggregate}(추출 계층, NetAmountCalculator 경유)에서 오므로 여기서 다시
- * SUM하지 않는다 — figure 순액을 (보험사×상품) 단위로 롤업만 한다.
+ * SUM하지 않는다 — figure 순액을 (보험사×상품) 단위로 롤업만 한다. <b>등급 산정은 {@link GradingPolicy}로
+ * 분리</b>했다(기준 미확정 §11 #13) — 순위 산출 로직은 정책과 무관하다.
  */
 public class RankingService {
+
+    private final GradingPolicy gradingPolicy;
+
+    /** 기본 3분위 등급. */
+    public RankingService() {
+        this(new TercileGradingPolicy());
+    }
+
+    public RankingService(GradingPolicy gradingPolicy) {
+        this.gradingPolicy = Objects.requireNonNull(gradingPolicy);
+    }
 
     /** 순위·등급 한 건 (순수 데이터 — 표시 서식과 무관). */
     public record CommissionRank(InsurerCode insurerCd, ProductKey productKey, Money net,
@@ -46,20 +59,12 @@ public class RankingService {
         List<CommissionRank> ranks = new ArrayList<>();
         for (int i = 0; i < total; i++) {
             int rank = i + 1;
+            Money net = sorted.get(i).getValue();
             ranks.add(new CommissionRank(sorted.get(i).getKey().insurerCd,
-                    sorted.get(i).getKey().productKey, sorted.get(i).getValue(),
-                    rank, gradeFor(rank, total)));
+                    sorted.get(i).getKey().productKey, net, rank,
+                    gradingPolicy.grade(rank, total, net)));
         }
         return ranks;
-    }
-
-    /** 3분위 등급 — 상위 1/3 A, 중위 B, 하위 C (올림 기준으로 소수 케이스도 안정). */
-    private static String gradeFor(int rank, int total) {
-        int third = Math.max(1, (int) Math.ceil(total / 3.0));
-        if (rank <= third) {
-            return "A";
-        }
-        return rank <= 2 * third ? "B" : "C";
     }
 
     private record Key(InsurerCode insurerCd, ProductKey productKey) {

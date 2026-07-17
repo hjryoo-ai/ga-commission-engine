@@ -1,0 +1,49 @@
+# GA 수수료 시스템 실행 구성 (설계서 §10 Phase 16 — 구성 외부화)
+# 저장소에는 비밀이 없다: DB 접속·자격·인증 사용자는 전부 환경변수/외부 설정으로만 주입한다.
+# 운영 프로파일은 application-prod.yml + 환경변수. 기동: -Dspring.profiles.active=prod
+#   -Duser.timezone=Asia/Seoul -Dfile.encoding=UTF-8  (결정론 — README 운영 절 참조)
+
+spring:
+  application:
+    name: commission-system
+  # 시스템 파일 인코딩이 UTF-8이 아니면 기동 실패시켜 배포 환경 차이를 초기에 드러낸다(결정론).
+  mandatory-file-encoding: UTF-8
+  datasource:
+    url: ${DB_URL:}                 # 예) jdbc:oracle:thin:@//host:1521/svc — 외부 주입 필수
+    username: ${DB_USERNAME:}
+    password: ${DB_PASSWORD:}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:8}
+      # 커넥션 획득 대기(풀 고갈) 타임아웃. 한도 락(SELECT FOR UPDATE)의 DB 레벨 대기와는 별개다 —
+      # 락 대기는 DB의 트랜잭션 대기이고, 이 값은 풀에서 커넥션을 못 얻을 때의 상한이다.
+      connection-timeout: ${DB_CONNECTION_TIMEOUT_MS:30000}
+      # 지급/계산 잡의 항목 트랜잭션이 짧게 커밋되도록 설계됐으므로(§6.1.6) 풀 8로 충분.
+      # 동시 경합 IT가 커넥션 여유를 요구하므로 최소 8 이상 권장.
+  flyway:
+    # 공통 + Oracle 전용(파티션·function-based index·BATCH_* 메타) — 운영 배포와 동일 경로.
+    locations: classpath:db/migration,classpath:db/vendor/oracle
+  batch:
+    job:
+      enabled: false                 # 기동 시 잡 자동실행 금지(자동설정 제외와 이중 방어)
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+
+server:
+  shutdown: graceful                 # graceful shutdown: 진행 중 요청 완료 후 종료
+                                     # (배치 잡은 별도 기동/독립 실행이므로 웹 종료와 분리)
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info         # 최소 노출 — 나머지 actuator는 ADMIN 권한
+  endpoint:
+    health:
+      probes:
+        enabled: true                # liveness/readiness 프로브
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true

@@ -1,0 +1,16 @@
+# 운영 프로파일 (spring.profiles.active=prod). 값은 여기 두지 않고 전부 환경변수/외부 설정으로 주입한다.
+# 이 파일의 역할은 "운영에서 무엇이 달라지는가"의 명시다 — 비밀은 담지 않는다(저장소 비밀 0).
+#
+# prod에서 달라지는 것:
+#   - Flyway: 기동 시 validate만 (FlywayConfig의 @Profile("prod") FlywayMigrationStrategy).
+#     스키마 변경(migrate)은 배포 파이프라인의 통제된 절차로만.
+#   - DB 접속/자격, 인증 사용자(app.security.users)는 환경변수 주입 필수 — 없으면 기동 실패(의도).
+#
+# 기동 예: -Dspring.profiles.active=prod -Duser.timezone=Asia/Seoul -Dfile.encoding=UTF-8
+#          DB_URL / DB_USERNAME / DB_PASSWORD (환경변수)
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health   # 운영은 health만 웹 노출 (info 등 나머지는 ADMIN 전용 경로로 제한)
