@@ -16,7 +16,7 @@
 - **`main` 보호**: 직접 푸시 금지, PR 필수, CI green 필수.
 - 작업은 단명 브랜치(`feature/inbound-samsung`, `fix/…`)에서. PR은 혼자여도 만든다 —
   diff 리뷰가 PR 리뷰로, Phase 보고가 PR 설명으로 자연 승격된다.
-- 커밋은 작업 단위로 잘게, **머지는 squash**로 "PR = 논리적 변경 1개"를 유지한다.
+- 커밋은 작업 단위로 잘게, **머지는 merge commit**(squash 금지, v1.2.2 — Phase 보고서가 커밋 해시를 증거로 인용하므로 해시가 main에서 살아 있어야 한다). "PR = 논리적 변경 1개"는 PR 범위로 유지한다. 브랜치는 `work/phase-<id>`(태그 `phase-<id>`와 이름이 겹치지 않게).
 
 ## 버전·태그 (이원화)
 
