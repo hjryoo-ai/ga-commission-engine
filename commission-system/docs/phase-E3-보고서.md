@@ -66,6 +66,7 @@ commission-system/
 | commission-infra | test (H2) | 2 | FlywayMigrationTest 테이블 목록 +7 |
 | commission-infra | integrationTest (Oracle) | 117 | 기존 102 + 신규 15 |
 
+- **GitHub Actions** (커밋 `52f8feb`): push 실행 36561572336 빠른 티어 success(단위/H2·골든셋 + `verifyUpstreamContract` + `net.jqwik` 스캔), PR 실행 36561597914 빠른 티어 success + **풀 티어 success**(Oracle Testcontainers IT + 기동 스모크 E2E).
 - E3-0 직후(기능 추가 전) 기준선: 8,500건 전부 통과(스킵 0) — 기존 테스트 무손상의 비교 기준. jqwik 원본은 한 번도 실행하지 않았다(아래 §7).
 - `net.jqwik`: 전 프로젝트 `dependencies` 출력 6,644행에서 0건. 빌드 로그에 도구 출력발 지시문 없음(§8).
 
