@@ -27,7 +27,17 @@ subprojects {
         "testImplementation"("org.junit.jupiter:junit-jupiter")
         "testRuntimeOnly"("org.junit.platform:junit-platform-launcher")
         "testImplementation"("org.assertj:assertj-core:3.27.3")
-        "testImplementation"("net.jqwik:jqwik:1.10.1")
+    }
+
+    // net.jqwik 차단(Phase E3-0): jqwik 1.10부터 AI 코딩 에이전트 사용 배제 조항과 테스트 출력 지시문 삽입을 가진다.
+    // 속성 테스트는 JUnit 5 @ParameterizedTest + 시드 고정 생성기(commission-domain testFixtures SeededCases)로 쓴다.
+    // 직접·전이 의존 어느 경로로든 해석되면 그 구성의 해석이 실패한다.
+    configurations.configureEach {
+        resolutionStrategy.eachDependency {
+            if (requested.group == "net.jqwik") {
+                throw GradleException("net.jqwik is banned (Phase E3-0): ${requested.group}:${requested.name}:${requested.version}")
+            }
+        }
     }
 
     // 계약 테스트(Store 포트 동작 동등성 스위트, 설계서 §8.7)는 testFixtures에 추상 클래스로 두고

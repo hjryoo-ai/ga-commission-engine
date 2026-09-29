@@ -10,22 +10,34 @@ import ga.comm.domain.id.PolicyNo;
 import ga.comm.domain.money.Money;
 import ga.comm.domain.type.RecipientType;
 import ga.comm.rule.model.EffectivePeriod;
-import net.jqwik.api.ForAll;
-import net.jqwik.api.Property;
-import net.jqwik.api.constraints.LongRange;
+import ga.comm.domain.testing.SeededCases;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** 불변식 (설계서 §8.2): 임의 금액에서 분급 스케줄 합 = 이연 원금. */
+/**
+ * 불변식 (설계서 §8.2): 임의 금액에서 분급 스케줄 합 = 이연 원금.
+ * 시드 고정 생성기 — jqwik 대체(Phase E3-0). 원본 {@code tries = 100}을 경계값 + 무작위 100건으로 유지.
+ */
 class DeferralSplitPropertyTest {
 
-    @Property(tries = 100)
-    void 분급_스케줄_합은_항상_이연_원금과_같다(
-            @ForAll @LongRange(min = 10_000, max = 10_000_000) long premium) {
+    static Stream<Arguments> premiums() {
+        return SeededCases.withEdges(0x5EED_E321L, 100,
+                List.<Object[]>of(new Object[] {10_000L}, new Object[] {10_000_000L}, new Object[] {10_001L},
+                        new Object[] {9_999_999L}),
+                r -> new Object[] {SeededCases.longIn(r, 10_000, 10_000_000)});
+    }
+
+    @ParameterizedTest
+    @MethodSource("premiums")
+    void 분급_스케줄_합은_항상_이연_원금과_같다(long premium) {
         CalcTestHarness harness = new CalcTestHarness();
         InMemoryDeferralScheduleStore schedules = new InMemoryDeferralScheduleStore();
         harness.addStep(new StepConfig(new DeferralSplitStep(),
