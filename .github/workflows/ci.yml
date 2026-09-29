@@ -34,6 +34,12 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Build (Docker 테스트 제외)
         run: ./gradlew build -x :commission-infra:integrationTest -x :commission-app:test --no-daemon
+      - name: 계약 원본 대조 (contracts/UPSTREAM의 ga-disclosure 커밋과 SHA-256 일치, Phase E3)
+        run: ./gradlew verifyUpstreamContract --no-daemon
+      - name: net.jqwik 부재 확인 (Phase E3-0 — 해석 시 빌드 실패 규칙의 이중 확인)
+        run: |
+          ./gradlew -q $(./gradlew -q projects | grep -o "':[^']*'" | tr -d "'" | sed 's/$/:dependencies/') > deps.txt
+          if grep -q 'net\.jqwik' deps.txt; then echo 'net.jqwik found'; exit 1; fi
 
   full:
     name: 풀 티어 (Oracle IT + 기동 스모크)
