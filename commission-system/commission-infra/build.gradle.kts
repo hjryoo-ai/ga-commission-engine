@@ -25,6 +25,7 @@ dependencies {
     api(project(":commission-deferral"))
     api(project(":commission-settlement"))
     api(project(":commission-inbound"))
+    api(project(":commission-disclosure"))   // 비교설명 등급·순위 포트의 Oracle 어댑터(Phase E3)
 
     implementation("org.mybatis:mybatis:3.5.19")
     implementation("org.mybatis:mybatis-spring:3.0.6")
@@ -42,6 +43,7 @@ dependencies {
     "integrationTestImplementation"(testFixtures(project(":commission-deferral")))
     "integrationTestImplementation"(testFixtures(project(":commission-settlement")))
     "integrationTestImplementation"(testFixtures(project(":commission-inbound")))
+    "integrationTestImplementation"(testFixtures(project(":commission-disclosure")))
     "integrationTestImplementation"(project(":commission-batch"))
     "integrationTestImplementation"(project(":commission-shadow")) // 섀도 런 실 Oracle 경로 IT
 

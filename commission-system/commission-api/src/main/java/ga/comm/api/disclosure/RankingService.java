@@ -1,5 +1,7 @@
 package ga.comm.api.disclosure;
 
+import ga.comm.disclosure.grade.policy.RankingPolicySpec;
+import ga.comm.disclosure.grade.rank.SetRanker;
 import ga.comm.domain.id.CommTypeCode;
 import ga.comm.domain.id.InsurerCode;
 import ga.comm.domain.id.ProductKey;
@@ -65,6 +67,15 @@ public class RankingService {
                     gradingPolicy.grade(rank, total, net)));
         }
         return ranks;
+    }
+
+    /**
+     * 비교<b>설명</b> 세트 내 순위(Phase E3, ga-disclosure 계약 §4.1) — 위 {@link #rank}(비교공시 집계, 순액 내림차순)와 별개다.
+     * 요청 세트의 OK 항목만, 측정값 오름차순(수수료가 낮을수록 1순위). 동점 규칙은 순위 정책 데이터({@link RankingPolicySpec})가
+     * 정한다: SHARED_RANK = 경쟁 순위, STRICT = 2차 키로 1..m. 구현은 {@link SetRanker}.
+     */
+    public List<SetRanker.Ranked> rankInSet(List<SetRanker.Candidate> candidates, RankingPolicySpec policy) {
+        return SetRanker.rank(candidates, policy);
     }
 
     private record Key(InsurerCode insurerCd, ProductKey productKey) {
