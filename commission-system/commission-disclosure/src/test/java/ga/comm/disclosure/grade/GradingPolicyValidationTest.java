@@ -68,6 +68,9 @@ class GradingPolicyValidationTest {
                 broken("사유 매핑 누락", "unavailableReasons: missing NO_RATE_DATA",
                         p -> ((ObjectNode) p.get("unavailableReasons")).remove("NO_RATE_DATA")),
                 broken("알 수 없는 원인", "unknown cause TYPO", p -> ((ObjectNode) p.get("unavailableReasons")).put("TYPO", "X")),
+                // E3.1 §3-7: 임시등록은 엔진 원인이 아니다(요청에 오지 않음) — 정책 데이터에 넣으면 거부
+                broken("임시등록 원인 없음", "unknown cause TEMP_PRODUCT",
+                        p -> ((ObjectNode) p.get("unavailableReasons")).put("TEMP_PRODUCT", "TEMP_PRODUCT")),
                 broken("반올림 UNNECESSARY", "UNNECESSARY is not a rounding mode", p -> p.put("ratioRounding", "UNNECESSARY")),
                 broken("모집단 최소 0", "minPopulation: must be within", p -> ((ObjectNode) p.get("population")).put("minPopulation", 0)),
                 broken("기간 종류 미지원", "kind: required", p -> ((ObjectNode) p.get("period")).put("kind", "CALENDAR_YEAR")));

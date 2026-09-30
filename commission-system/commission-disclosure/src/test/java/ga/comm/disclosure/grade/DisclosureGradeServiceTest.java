@@ -43,7 +43,7 @@ class DisclosureGradeServiceTest {
         GradeScenario s = three();
         DisclosureGradeService.Issued issued = s.service().issue(GradeScenario.request("INS-A:PRD-1001", "INS-B:PRD-2044", "INS-C:PRD-3120"));
         JsonNode r = json(issued.responseCanonical());
-        assertThat(issued.snapshotId()).isEqualTo("GRD-20260923-000001");
+        assertThat(issued.snapshotId()).isEqualTo("GRD-20260923-1000000");
         assertThat(r.get("snapshotId").asText()).isEqualTo(issued.snapshotId());
         assertThat(r.get("tieBreak").asText()).isEqualTo("SHARED_RANK");
         assertThat(r.get("basis").toString()).isEqualTo("{\"groupAvgSource\":\"ENGINE_LEDGER\",\"groupPopulation\":3,\"period\":\"2026Q2\"}");
@@ -52,7 +52,16 @@ class DisclosureGradeServiceTest {
         assertThat(r.get("results").findValuesAsText("productKey")).containsExactly("INS-A:PRD-1001", "INS-C:PRD-3120", "INS-B:PRD-2044");
         // 정규 JSON: 공백 없음, 키 정렬
         assertThat(issued.responseCanonical()).doesNotContain(" :").startsWith("{\"basis\":");
-        assertThat(s.service().issue(GradeScenario.request("INS-A:PRD-1001")).snapshotId()).isEqualTo("GRD-20260923-000002");
+        assertThat(s.service().issue(GradeScenario.request("INS-A:PRD-1001")).snapshotId()).isEqualTo("GRD-20260923-1000001");
+    }
+
+    /** E3.1 §3-4: 번호는 날마다 다시 세지 않는다(SEQUENCE 하나). 날짜 부분만 발급일을 따른다. */
+    @Test
+    void 채번은_날짜가_바뀌어도_이어진다() {
+        GradeScenario s = three();
+        assertThat(s.service().issue(GradeScenario.request("INS-A:PRD-1001")).snapshotId()).isEqualTo("GRD-20260923-1000000");
+        s.clock = java.time.Clock.fixed(GradeScenario.NOW.plus(java.time.Duration.ofDays(1)), GradeScenario.SEOUL);
+        assertThat(s.service().issue(GradeScenario.request("INS-A:PRD-1001")).snapshotId()).isEqualTo("GRD-20260924-1000001");
     }
 
     @Test
@@ -191,5 +200,23 @@ class DisclosureGradeServiceTest {
         assertThatThrownBy(() -> GradeRequest.of("T1", null, "PG", List.of(new GradeRequest.Product("INS-A:P1", "INS-A"))))
                 .isInstanceOf(GradeRequestException.class).hasMessageContaining("asOfDate");
         assertThat(Map.of()).isEmpty();
+    }
+
+    /** E3.1 §3-2: 상품 키 40자·패턴, 보험사 코드 8자·패턴(계약 1.2.0). 규칙 밖 키는 자르지 않고 400. */
+    @Test
+    void 상품_키_규칙은_계약_1_2_0과_같다() {
+        String key40 = "ABCDEFGH:P111111111111111111111111111111";
+        assertThat(key40).hasSize(40);
+        assertThat(GradeRequest.of("T1", GradeScenario.AS_OF, "PG", List.of(new GradeRequest.Product(key40, "ABCDEFGH")))
+                .products().getFirst().productKey()).isEqualTo(key40);
+        for (String bad : List.of(key40 + "2", "ABCDEFGHI:P1", "INS_A:P1", "-INS:P1", "INS-A:.P1", "INS-A:-P1", "INS-A:_P1")) {
+            assertThatThrownBy(() -> GradeRequest.of("T1", GradeScenario.AS_OF, "PG",
+                    List.of(new GradeRequest.Product(bad, bad.substring(0, bad.indexOf(':'))))))
+                    .as(bad).isInstanceOf(GradeRequestException.class).hasMessageContaining("productKey");
+        }
+        for (String badInsurer : List.of("ABCDEFGHI", "INS_A", "ins-a", "-INS", "")) {
+            assertThatThrownBy(() -> GradeRequest.of("T1", GradeScenario.AS_OF, "PG", List.of(new GradeRequest.Product("INS-A:P1", badInsurer))))
+                    .as(badInsurer).isInstanceOf(GradeRequestException.class).hasMessageContaining("insurerCode");
+        }
     }
 }

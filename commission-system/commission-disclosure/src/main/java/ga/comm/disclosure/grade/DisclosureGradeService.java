@@ -39,14 +39,13 @@ import java.util.Objects;
  *
  * <p>순서: 테넌트(403) → 정책 해석(Ambiguous 409 / 0건 422 / 결함 422) → 기준일 미래(400, 정책 파라미터) → 상품군 코드 체계(400)
  * → 측정 기간 → 모집단 측정 → 요청 항목 판정(OK 후보 / UNAVAILABLE 원인) → 세트 순위 → 비율(1회 반올림)·등급 → 자기 검증(422)
- * → 트랜잭션 안에서 채번·정규화·해시·저장. 응답 본문은 저장한 정규 문자열 그대로다.
+ * → 트랜잭션 안에서 채번(SEQUENCE, E3.1)·정규화·해시·저장. 응답 본문은 저장한 정규 문자열 그대로다.
  *
  * <p>임계치·라벨·사유 코드·동점 규칙은 정책 데이터에서만 온다. 이 클래스에는 그런 값이 없다.
  */
 public final class DisclosureGradeService {
 
     private static final DateTimeFormatter DAY = DateTimeFormatter.BASIC_ISO_DATE;
-    private static final int MAX_DAILY_SEQUENCE = 999_999;
 
     private final PolicySource policies;
     private final ProductGroupDirectory groups;
@@ -142,11 +141,12 @@ public final class DisclosureGradeService {
         OffsetDateTime generatedAt = OffsetDateTime.now(clock).truncatedTo(ChronoUnit.SECONDS);
         GradeSnapshot.Basis basis = new GradeSnapshot.Basis(measure.groupAvgSource(), period.label(), population.size());
         return transactions.inTx(() -> {
-            int sequence = snapshots.nextSequence(generatedAt.toLocalDate());
-            if (sequence < 1 || sequence > MAX_DAILY_SEQUENCE) {
-                throw new IllegalStateException("daily snapshot sequence exhausted: " + sequence);
+            // 번호는 날마다 다시 세지 않는다(E3.1 §3-4). 대역 밖 값은 조용히 쓰지 않는다(B-13).
+            long number = snapshots.nextNumber();
+            if (number < GradeSnapshotStore.FIRST_NUMBER || number > GradeSnapshotStore.LAST_NUMBER) {
+                throw new IllegalStateException("snapshot number out of range: " + number);
             }
-            String snapshotId = "GRD-" + generatedAt.toLocalDate().format(DAY) + "-" + String.format("%06d", sequence);
+            String snapshotId = "GRD-" + generatedAt.toLocalDate().format(DAY) + "-" + number;
             GradeSnapshot snapshot = new GradeSnapshot(snapshotId, request.tenantId(), asOf, request.productGroupCode(),
                     grading.id(), ranking.id(), ranking.spec().tieBreak(), basis, results, generatedAt);
             String canonical = SnapshotJson.canonical(snapshot);

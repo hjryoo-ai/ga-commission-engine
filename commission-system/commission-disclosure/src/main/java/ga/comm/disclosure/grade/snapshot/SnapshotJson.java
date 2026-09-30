@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import ga.comm.disclosure.grade.GradeResult;
-import org.erdtman.jcs.JsonCanonicalizer;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -57,7 +56,7 @@ public final class SnapshotJson {
         }
         root.put("generatedAt", s.generatedAt().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
         try {
-            return new JsonCanonicalizer(JSON.writeValueAsString(root)).getEncodedString();
+            return Jcs.canonicalize(JSON.writeValueAsString(root));
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

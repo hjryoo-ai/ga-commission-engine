@@ -51,7 +51,7 @@ class FlywayMigrationTest {
                 "COMM_RATE_CHANGE_HIST",
                 "INCENTIVE_MST", "INCENTIVE_CHANGE_HIST",
                 "DISC_GRADING_POLICY", "DISC_RANKING_POLICY", "DISC_PRODUCT_GROUP", "DISC_PRODUCT_GROUP_MEMBER",
-                "DISC_GRADE_SNAPSHOT", "DISC_GRADE_SNAPSHOT_ITEM", "DISC_GRADE_SNAPSHOT_SEQ"
+                "DISC_GRADE_SNAPSHOT", "DISC_GRADE_SNAPSHOT_ITEM"
         ));
     }
 
@@ -72,6 +72,26 @@ class FlywayMigrationTest {
                                 DATE '2026-08-01', 'A1', 300000)
                             """)
             ).hasMessageContaining("UQ_POLICY_EVENT_KEY");
+        }
+    }
+
+    /** E3.1: 스냅샷 번호 SEQUENCE는 7자리 전용 대역에서 시작하고, 소속 외부 키는 40자를 넘을 수 없다(H2 겸용 확인). */
+    @Test
+    void 스냅샷_번호_SEQUENCE와_소속_외부_키_폭() throws Exception {
+        try (Connection conn = DriverManager.getConnection(URL, "sa", "")) {
+            try (ResultSet rs = conn.createStatement().executeQuery("SELECT DISC_GRADE_SNAPSHOT_NO.NEXTVAL FROM DUAL")) {
+                rs.next();
+                assertThat(rs.getLong(1)).isBetween(1_000_000L, 9_999_999L);
+            }
+            conn.createStatement().executeUpdate("INSERT INTO DISC_PRODUCT_GROUP (group_code_system, group_code, group_name, apply_from)"
+                    + " VALUES ('PG-V1', 'PG-WIDTH', 'w', DATE '2026-01-01')");
+            String key40 = "ABCDEFGH:P" + "1".repeat(30);
+            conn.createStatement().executeUpdate("INSERT INTO DISC_PRODUCT_GROUP_MEMBER (group_code_system, group_code, ext_product_key,"
+                    + " insurer_cd, product_key, apply_from) VALUES ('PG-V1', 'PG-WIDTH', '" + key40 + "', 'X', 'Y', DATE '2026-01-01')");
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> conn.createStatement().executeUpdate(
+                    "INSERT INTO DISC_PRODUCT_GROUP_MEMBER (group_code_system, group_code, ext_product_key, insurer_cd, product_key,"
+                            + " apply_from) VALUES ('PG-V1', 'PG-WIDTH', '" + key40 + "2', 'X', 'Y', DATE '2026-01-01')"))
+                    .isInstanceOf(java.sql.SQLException.class);
         }
     }
 }

@@ -123,9 +123,50 @@ class EngineDisclosureContractTest {
         assertThat(lines).contains(hash + "  " + FILE);
         assertThat(Files.readString(CONTRACTS.resolve("UPSTREAM")).trim())
                 .matches(Pattern.compile("^hjryoo-ai/ga-disclosure@[0-9a-f]{40}$"));
-        // 계약 1.1.0: 401·403·422(POST) 응답이 있다(E3 계획 Q3 — ga-disclosure PR #2)
+        // 계약 1.1.0: 401·403·422(POST) 응답이 있다(E3 계획 Q3 — ga-disclosure PR #2). 1.2.0: E3.1(ga-disclosure PR #4)
         JsonNode doc = new YAMLMapper().readTree(Files.readString(CONTRACTS.resolve(FILE)));
-        assertThat(doc.at("/info/version").asText()).isEqualTo("1.1.0");
+        assertThat(doc.at("/info/version").asText()).isEqualTo("1.2.0");
         assertThat(doc.at("/paths/~1internal~1v1~1disclosure~1commission-grades/post/responses").has("422")).isTrue();
+    }
+
+    /**
+     * E3.1 §3-3: 엔진 E3 요청 1~4가 계약에 있고 엔진 구현이 그 코드를 낸다 — POST 400 AS_OF_IN_FUTURE·UNKNOWN_PRODUCT_GROUP
+     * (GradeRequestException), POST 422 INVALID_POLICY, GET 500 SNAPSHOT_INTEGRITY. GET 403은 "인가 거부(역할 없음)"이고
+     * 다른 테넌트의 스냅샷은 404다(DisclosureGradeService.refetch가 테넌트 불일치를 SnapshotNotFound로 낸다).
+     */
+    @Test
+    void 계약_1_2_0의_오류_코드와_GET_403_설명() throws Exception {
+        JsonNode doc = new YAMLMapper().readTree(Files.readString(CONTRACTS.resolve(FILE)));
+        JsonNode post = doc.at("/paths/~1internal~1v1~1disclosure~1commission-grades/post/responses");
+        JsonNode get = doc.at("/paths/~1internal~1v1~1disclosure~1commission-grades~1{snapshotId}/get/responses");
+        assertThat(post.at("/400/description").asText()).contains("AS_OF_IN_FUTURE", "UNKNOWN_PRODUCT_GROUP");
+        assertThat(post.at("/422/description").asText()).contains("NO_POLICY", "POLICY_SELF_CHECK_FAILED", "INVALID_POLICY");
+        assertThat(get.has("500")).isTrue();
+        assertThat(get.at("/500/description").asText()).contains("SNAPSHOT_INTEGRITY");
+        assertThat(get.at("/403/description").asText()).contains("인가 거부").contains("404");
+        assertThat(doc.at("/components/schemas/GradeResultUnavailable/properties/reason/description").asText())
+                .contains("TEMP_PRODUCT를 내지 않는다");
+    }
+
+    /** E3.1 §3-2: 엔진 요청 검증(400)과 계약 요청 스키마가 같은 키를 받고 같은 키를 거부한다 — 한쪽만 바뀌면 실패. */
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "INS-A:PRD-1001|INS-A", "ABCDEFGH:P111111111111111111111111111111|ABCDEFGH", "A:1|A", "INS-A:p.r_d-1|INS-A",
+            "ABCDEFGH:P1111111111111111111111111111112|ABCDEFGH", "ABCDEFGHI:P1|ABCDEFGHI", "INS_A:P1|INS_A", "-INS:P1|-INS",
+            "INS-A:.P1|INS-A", "INS-A:-P1|INS-A", "ins-a:P1|ins-a", "INS-A:P:1|INS-A", "INS-A:P1|INS_A", "INS-A:P1|ABCDEFGHI"})
+    void 엔진_요청_검증과_계약_스키마의_키_판정이_같다(String spec) {
+        String key = spec.substring(0, spec.lastIndexOf('|'));
+        String insurer = spec.substring(spec.lastIndexOf('|') + 1);
+        ObjectNode node = JSON.createObjectNode().put("tenantId", "T1").put("asOfDate", "2026-09-23").put("productGroupCode", "PG");
+        node.putArray("products").addObject().put("productKey", key).put("insurerCode", insurer);
+        boolean schemaAccepts = schema("CommissionGradesRequest").validate(node).isEmpty();
+        boolean engineAccepts;
+        try {
+            GradeRequest.of("T1", java.time.LocalDate.of(2026, 9, 23), "PG", List.of(new GradeRequest.Product(key, insurer)));
+            engineAccepts = true;
+        } catch (GradeRequestException e) {
+            engineAccepts = false;
+        }
+        assertThat(engineAccepts).as("engine vs contract for %s", spec).isEqualTo(schemaAccepts);
     }
 }

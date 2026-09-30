@@ -4,21 +4,20 @@ import ga.comm.disclosure.grade.snapshot.GradeSnapshot;
 import ga.comm.disclosure.grade.snapshot.GradeSnapshotStore;
 import ga.comm.disclosure.grade.snapshot.StoredSnapshot;
 
-import java.time.LocalDate;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicLong;
 
 public final class InMemoryGradeSnapshotStore implements GradeSnapshotStore {
 
-    private final Map<LocalDate, Integer> sequences = new HashMap<>();
+    private final AtomicLong numbers = new AtomicLong(FIRST_NUMBER);
     private final Map<String, StoredSnapshot> stored = new LinkedHashMap<>();
     private final Map<String, GradeSnapshot> snapshots = new LinkedHashMap<>();
 
     @Override
-    public int nextSequence(LocalDate day) {
-        return sequences.merge(day, 1, Integer::sum);
+    public long nextNumber() {
+        return numbers.getAndIncrement();   // SEQUENCE와 같다: 날짜 무관 단조 증가
     }
 
     @Override

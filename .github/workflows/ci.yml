@@ -55,3 +55,47 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Full build (Testcontainers Oracle)
         run: ./gradlew build --no-daemon
+
+  no-docker:
+    name: Docker 없음 → 통합 테스트 실패 (스킵 아님)
+    # E3 수용 심사 §2-17·§3-8(E3.1 선택 항목): ga-disclosure `no-docker` 잡과 같은 방식. Docker가 없으면 Oracle IT는 스킵이 아니라
+    # 실패해야 한다 — 이 잡은 "실패해야 성공"이다. `container:` 방식은 호스트 docker.sock이 마운트되어 Docker가 사라지지 않으므로
+    # 호스트 러너에서 데몬을 멈추고 소켓을 지운다(E3의 소켓 오버라이드 확인을 데몬 정지 실측으로 대체).
+    # 성공 조건: Gradle 종료 코드 ≠ 0, 결과 XML ≥ 1, 그 안에 Testcontainers의 Docker 미발견 오류, 스킵 0건, 실패한 스위트 ≥ 1.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Stop Docker and remove its socket
+        run: |
+          sudo systemctl stop docker.socket docker.service containerd.service || true
+          sudo rm -f /var/run/docker.sock
+          if docker info > /dev/null 2>&1; then echo 'Docker is still reachable'; exit 1; fi
+          test ! -S /var/run/docker.sock
+          echo 'Docker is unavailable'
+      - name: commission-infra integrationTest must FAIL without Docker
+        shell: bash
+        run: |
+          set +e
+          ./gradlew :commission-infra:integrationTest --no-daemon --console=plain > it.log 2>&1
+          code=$?
+          set -e
+          echo "gradle exit code: $code"
+          tail -n 80 it.log
+          if [ "$code" -eq 0 ]; then echo 'FAIL: integrationTest passed without Docker'; exit 1; fi
+          dir=commission-infra/build/test-results/integrationTest
+          results=$(ls $dir/*.xml 2>/dev/null | wc -l)
+          if [ "$results" -eq 0 ]; then echo 'FAIL: no test results — the tests did not run'; exit 1; fi
+          # 콘솔은 짧은 예외 형식이라 원인이 안 보인다 — 결과 XML의 전체 스택에서 Testcontainers의 Docker 미발견 오류를 찾는다
+          if ! grep -q 'Could not find a valid Docker environment' $dir/*.xml; then echo 'FAIL: no Testcontainers Docker-missing error in the results'; exit 1; fi
+          if grep -h -o 'skipped="[0-9]*"' $dir/*.xml | grep -v -q 'skipped="0"'; then
+            echo 'FAIL: some integration tests were skipped'; exit 1
+          fi
+          failed=$(grep -l -E '(failures|errors)="[1-9]' $dir/*.xml | wc -l)
+          echo "result files: $results, with failures/errors: $failed, skipped: 0"
+          if [ "$failed" -eq 0 ]; then echo 'FAIL: no failing test suite'; exit 1; fi
+          echo 'OK: integration tests failed (not skipped) because Docker is missing'

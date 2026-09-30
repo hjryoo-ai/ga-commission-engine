@@ -3,7 +3,6 @@ package ga.comm.infra.mapper;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
-import org.apache.ibatis.annotations.Update;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -91,14 +90,9 @@ public interface DisclosureGradeMapper {
     int countInboundRates(@Param("insurerCd") String insurerCd, @Param("productKey") String productKey,
                           @Param("commType") String commType, @Param("installmentNo") Integer installmentNo);
 
-    @Select("SELECT last_no FROM DISC_GRADE_SNAPSHOT_SEQ WHERE seq_date = #{day} FOR UPDATE")
-    Integer lockSequence(@Param("day") LocalDate day);
-
-    @Insert("INSERT INTO DISC_GRADE_SNAPSHOT_SEQ (seq_date, last_no) VALUES (#{day}, 1)")
-    int insertSequence(@Param("day") LocalDate day);
-
-    @Update("UPDATE DISC_GRADE_SNAPSHOT_SEQ SET last_no = last_no + 1 WHERE seq_date = #{day}")
-    int incrementSequence(@Param("day") LocalDate day);
+    /** 스냅샷 번호(V13 SEQUENCE, E3.1). */
+    @Select("SELECT DISC_GRADE_SNAPSHOT_NO.NEXTVAL FROM DUAL")
+    long nextSnapshotNumber();
 
     @Insert("""
             INSERT INTO DISC_GRADE_SNAPSHOT (snapshot_id, tenant_id, as_of_date, product_group_code,

@@ -144,4 +144,37 @@ class OracleDdlFeaturesIT {
                     .hasMessageContaining("PK_LIMIT_DTL");
         }
     }
+
+    /** E3.1: 스냅샷 번호는 SEQUENCE(7자리 전용 대역, NOCYCLE), 일자 카운터 표는 없다. 소속 외부 키 폭은 40(자르지 않고 거부). */
+    @Test
+    void 스냅샷_채번은_SEQUENCE이고_소속_외부_키는_40자다() throws Exception {
+        try (Connection c = OracleTestSupport.dataSource().getConnection(); Statement st = c.createStatement()) {
+            try (ResultSet rs = st.executeQuery("SELECT min_value, max_value, cycle_flag FROM user_sequences"
+                    + " WHERE sequence_name = 'DISC_GRADE_SNAPSHOT_NO'")) {
+                assertThat(rs.next()).isTrue();
+                assertThat(rs.getLong(1)).isEqualTo(1_000_000L);
+                assertThat(rs.getLong(2)).isEqualTo(9_999_999L);
+                assertThat(rs.getString(3)).isEqualTo("N");
+            }
+            try (ResultSet rs = st.executeQuery("SELECT COUNT(*) FROM user_tables WHERE table_name = 'DISC_GRADE_SNAPSHOT_SEQ'")) {
+                rs.next();
+                assertThat(rs.getInt(1)).isZero();
+            }
+            try (ResultSet rs = st.executeQuery("SELECT char_length FROM user_tab_columns"
+                    + " WHERE table_name = 'DISC_PRODUCT_GROUP_MEMBER' AND column_name = 'EXT_PRODUCT_KEY'")) {
+                rs.next();
+                assertThat(rs.getInt(1)).isEqualTo(40);
+            }
+            st.executeUpdate("INSERT INTO DISC_PRODUCT_GROUP (group_code_system, group_code, group_name, apply_from)"
+                    + " VALUES ('PG-V1', 'PG-WIDTH', 'w', DATE '2026-01-01')");
+            String key40 = "ABCDEFGH:P" + "1".repeat(30);
+            st.executeUpdate("INSERT INTO DISC_PRODUCT_GROUP_MEMBER (group_code_system, group_code, ext_product_key, insurer_cd,"
+                    + " product_key, apply_from) VALUES ('PG-V1', 'PG-WIDTH', '" + key40 + "', 'X', 'Y', DATE '2026-01-01')");
+            assertThatThrownBy(() -> st.executeUpdate("INSERT INTO DISC_PRODUCT_GROUP_MEMBER (group_code_system, group_code,"
+                    + " ext_product_key, insurer_cd, product_key, apply_from) VALUES ('PG-V1', 'PG-WIDTH', '" + key40 + "2', 'X', 'Y',"
+                    + " DATE '2026-01-01')"))
+                    .isInstanceOf(SQLException.class)
+                    .hasMessageContaining("ORA-12899");
+        }
+    }
 }
