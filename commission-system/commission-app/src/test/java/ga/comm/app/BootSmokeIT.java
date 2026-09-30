@@ -173,7 +173,7 @@ class BootSmokeIT {
                 .andExpect(jsonPath("$.results[0].ratioToAvg").value("0.78"))
                 .andReturn();
         String snapshotId = com.jayway.jsonpath.JsonPath.read(issued.getResponse().getContentAsString(), "$.snapshotId");
-        assertThat(snapshotId).matches("GRD-\\d{8}-\\d{6}");
+        assertThat(snapshotId).matches("GRD-\\d{8}-\\d{7}");
         byte[] refetched = mvc.perform(get(url + "/{id}", snapshotId).header("Authorization", "Bearer " + SERVICE_TOKEN))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
         assertThat(refetched).isEqualTo(issued.getResponse().getContentAsByteArray());

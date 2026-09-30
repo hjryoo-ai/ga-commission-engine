@@ -55,11 +55,11 @@ class DisclosureGradeControllerTest {
         MvcResult issued = mvc.perform(post(URL).contentType(MediaType.APPLICATION_JSON)
                         .content(body("T1", "2026-09-23", GradeScenario.GROUP, THREE)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.snapshotId").value("GRD-20260923-000001"))
+                .andExpect(jsonPath("$.snapshotId").value("GRD-20260923-1000000"))
                 .andExpect(jsonPath("$.results[0].ratioToAvg").value("0.78"))
                 .andReturn();
         byte[] first = issued.getResponse().getContentAsByteArray();
-        byte[] again = mvc.perform(get(URL + "/{id}", "GRD-20260923-000001")).andExpect(status().isOk())
+        byte[] again = mvc.perform(get(URL + "/{id}", "GRD-20260923-1000000")).andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsByteArray();
         assertThat(again).isEqualTo(first);
         assertThat(issued.getResponse().getContentType()).startsWith(MediaType.APPLICATION_JSON_VALUE);
@@ -118,6 +118,10 @@ class DisclosureGradeControllerTest {
             "{\"tenantId\":\"T1\",\"asOfDate\":\"2026-09-23\",\"products\":[{\"productKey\":\"A:B\",\"insurerCode\":\"A\"}]}",
             "{\"tenantId\":\"T1\",\"asOfDate\":\"2026-09-23\",\"productGroupCode\":\"G\"}",
             "{\"tenantId\":\"T1\",\"asOfDate\":\"2026-09-23\",\"productGroupCode\":\"G\",\"products\":[{\"productKey\":\"no-colon\",\"insurerCode\":\"A\"}]}",
+            // 계약 1.2.0 상품 키 규칙(E3.1): 41자, 보험사 9자, 보험사 코드 형식 위반
+            "{\"tenantId\":\"T1\",\"asOfDate\":\"2026-09-23\",\"productGroupCode\":\"G\",\"products\":[{\"productKey\":\"ABCDEFGH:P1111111111111111111111111111112\",\"insurerCode\":\"ABCDEFGH\"}]}",
+            "{\"tenantId\":\"T1\",\"asOfDate\":\"2026-09-23\",\"productGroupCode\":\"G\",\"products\":[{\"productKey\":\"ABCDEFGHI:P1\",\"insurerCode\":\"ABCDEFGHI\"}]}",
+            "{\"tenantId\":\"T1\",\"asOfDate\":\"2026-09-23\",\"productGroupCode\":\"G\",\"products\":[{\"productKey\":\"INS-A:P1\",\"insurerCode\":\"INS_A\"}]}",
     })
     void 형식_오류_400(String json) throws Exception {
         mvc(scenario()).perform(post(URL).contentType(MediaType.APPLICATION_JSON).content(json))
@@ -139,7 +143,7 @@ class DisclosureGradeControllerTest {
 
     @Test
     void 없는_스냅샷_404() throws Exception {
-        mvc(scenario()).perform(get(URL + "/{id}", "GRD-20260923-000009"))
+        mvc(scenario()).perform(get(URL + "/{id}", "GRD-20260923-1000009"))
                 .andExpect(status().isNotFound()).andExpect(jsonPath("$.code").value("SNAPSHOT_NOT_FOUND"));
     }
 }

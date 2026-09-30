@@ -8,14 +8,13 @@ import ga.comm.disclosure.grade.snapshot.SnapshotJson;
 import ga.comm.disclosure.grade.snapshot.StoredSnapshot;
 import ga.comm.infra.mapper.DisclosureGradeMapper;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
 /**
- * 스냅샷 Oracle 어댑터(Phase E3). 채번은 일자 행을 {@code SELECT … FOR UPDATE}로 잠가 직렬화한다(첫 발급 날의 동시 INSERT 충돌은
- * PK 위반 → 호출 트랜잭션 실패로 드러나며 재시도는 호출자 몫). 저장은 INSERT뿐이며 DB 트리거(V103)가 UPDATE·DELETE를 거부한다.
+ * 스냅샷 Oracle 어댑터(Phase E3). 채번은 SEQUENCE {@code DISC_GRADE_SNAPSHOT_NO}(V13, E3.1) — 잠금·경합·재시도가 없다.
+ * 저장은 INSERT뿐이며 DB 트리거(V103)가 UPDATE·DELETE를 거부한다.
  */
 public class OracleGradeSnapshotStore implements GradeSnapshotStore {
 
@@ -26,14 +25,8 @@ public class OracleGradeSnapshotStore implements GradeSnapshotStore {
     }
 
     @Override
-    public int nextSequence(LocalDate day) {
-        Integer last = mapper.lockSequence(day);
-        if (last == null) {
-            mapper.insertSequence(day);
-            return 1;
-        }
-        mapper.incrementSequence(day);
-        return last + 1;
+    public long nextNumber() {
+        return mapper.nextSnapshotNumber();
     }
 
     @Override
