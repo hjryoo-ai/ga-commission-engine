@@ -33,7 +33,7 @@ spring:
 app:
   tenant-id: ${ENGINE_TENANT_ID:}
   internal:
-    service-token-sha256: ${ENGINE_SERVICE_TOKEN_SHA256:}
+    service-token-sha256: ${ENGINE_SERVICE_TOKEN_SHA256:}   # 쉼표 구분 1~2개(회전 겹침: 현재,다음 — E3.1)
 
 server:
   shutdown: graceful                 # graceful shutdown: 진행 중 요청 완료 후 종료

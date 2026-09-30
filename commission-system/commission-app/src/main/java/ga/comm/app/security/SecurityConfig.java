@@ -49,7 +49,7 @@ public class SecurityConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .httpBasic(basic -> basic.disable())
                 .formLogin(form -> form.disable())
-                .addFilterBefore(new ServiceTokenFilter(instance.requiredServiceTokenSha256()), AuthorizationFilter.class)
+                .addFilterBefore(new ServiceTokenFilter(instance.requiredServiceTokenSha256s()), AuthorizationFilter.class)
                 .authorizeHttpRequests(auth -> auth.anyRequest().hasRole(ServiceTokenFilter.ROLE))
                 .exceptionHandling(e -> e
                         .authenticationEntryPoint((request, response, ex) -> problem(response, 401, "UNAUTHENTICATED",
