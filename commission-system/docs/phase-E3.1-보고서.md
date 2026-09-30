@@ -14,7 +14,7 @@
 | 5 | `CLAUDE.md` 신설(저장소 루트 — `CONTRIBUTING.md`와 같은 위치) | `c2b717d` | 문서. 항목마다 출처(부록 B-n·CONTRIBUTING 절·빌드 스크립트·심사 회신) 표기, 새 규칙 없음 |
 | 6 | JCS 상호 검증 | `1590b5e` | `JcsCrossCheckTest` 1,051건: 파일 벡터 8(바이트)·공개 UTF-8 hex 7·§3.2.3 정렬 1·부록 B 26(+행 수 1)·ES6 표본 1,000(+행 수 1)·MUST 거부 6·서로게이트 쌍 1. 벡터 34개 파일은 ga-disclosure@9379be96 `platform-canonical/src/test/resources/jcs/`의 복사본 |
 | 7 | `TEMP_PRODUCT` 제거(원인 enum·정책 픽스처), §5-8 "데이터 목록 호환" 폐기 | `979ed9c` | `GradingPolicyValidationTest#…`(broken "임시등록 원인 없음" — 정책에 `TEMP_PRODUCT`가 있으면 `unknown cause TEMP_PRODUCT`로 INVALID_POLICY) |
-| 8 | (선택) CI `no-docker` 잡 — **했다** | `f294628` | CI 잡 `no-docker`: 호스트 러너에서 데몬 정지·소켓 제거 후 `:commission-infra:integrationTest`가 실패(종료 코드 ≠ 0, Testcontainers Docker 미발견 오류, 결과 XML ≥ 1, 스킵 0, 실패 스위트 ≥ 1)해야 성공 |
+| 8 | (선택) CI `no-docker` 잡 — **했다** | `f294628`, `29704ce` | CI 잡 `no-docker`: 호스트 러너에서 데몬 정지·소켓 제거 후 `:commission-infra:integrationTest`가 실패(종료 코드 ≠ 0, Testcontainers Docker 미발견 오류, 결과 XML ≥ 1, 스킵 0, 실패 스위트 ≥ 1)해야 성공 |
 | §4-4 | 서비스 토큰 해시 **목록**(1~2개, 회전 겹침) | `6f331f5` | `ServiceTokenFilterTest#회전_겹침_기간에는_현재와_다음_토큰을_모두_인정한다`, `#해시_목록_설정은_1개_또는_2개만_받는다`(쉼표 구분 바인딩, 3개·중복·형식 위반 기동 실패), `BootSmokeIT`(단일 해시 설정 그대로 동작) |
 | — | 설계서 v1.2.3(§6.7, 변경 이력), 설계고찰 §15 | `41e4b7b` | — |
 
@@ -52,7 +52,17 @@ BUILD SUCCESSFUL, **10,188건, 실패 0, 스킵 0** (결과 XML 전부 이 빌�
 
 ## 4. CI
 
-(PR 생성 후 `gh run view`로 직접 조회해 채운다.)
+PR #2. `gh run view`로 직접 조회했다.
+
+| 실행 | 이벤트 | 커밋 | 빠른 티어 | 풀 티어(Oracle IT + 기동 스모크) | no-docker |
+|---|---|---|---|---|---|
+| 36707297395 | pull_request | `74fc360` | success | success | **failure** — 잡의 판정 스크립트 결함(아래) |
+| 36707293325 | push | `74fc360` | success | skipped(push는 대상 아님) | failure(같은 원인) |
+| **36707595190** | pull_request | `29704ce` | **success** | **success**(BUILD SUCCESSFUL 1m 55s) | **success** |
+| 36707588461 | push | `29704ce` | success | skipped | success |
+
+- **no-docker 첫 실행의 실패 원인**: 통합 테스트는 의도대로 전부 실패했다(`113 tests completed, 113 failed`, Gradle 종료 코드 1). 그런데 잡이 Testcontainers의 `Could not find a valid Docker environment`를 **콘솔 로그**에서 찾았고, 엔진 빌드는 짧은 예외 형식이라 원인 메시지가 콘솔에 나오지 않는다. 결과 XML의 전체 스택에서 찾도록 고쳤다(`29704ce`). 두 번째 실행: `gradle exit code: 1`, `113 tests completed, 113 failed`, `result files: 27, with failures/errors: 27, skipped: 0`, `OK: integration tests failed (not skipped) because Docker is missing`. 113 = 119 − 7 + 1(`SnapshotImmutabilityIT`는 클래스 초기화 실패 1건으로 집계).
+- 이 보고서 커밋 뒤의 head CI는 아래 추기에 적는다.
 
 ## 5. 설계서와 달리 구현한 지점·판단
 
