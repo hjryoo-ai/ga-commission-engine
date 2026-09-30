@@ -180,3 +180,37 @@ jqwik 원본은 한 번도 실행하지 않았다(교체를 먼저 하고 빌드
 4. **서비스 토큰 운영**: 발급·회전 주체, ga-disclosure 쪽 보관(Phase 3 엔진 클라이언트), mTLS 병행 시점.
 5. **채번 첫 행 경합 재시도**를 엔진이 할지(현재 호출자 재시도).
 6. **UPSTREAM 고정 대상**: PR #2 head 커밋 유지 vs 병합 커밋으로 교체.
+
+## 10. 심사 제출 보강 (2026-09-30, ga-disclosure Phase 2 수용 심사 이후)
+
+### 10.1 1차 증거 재확인
+
+- **로컬 재실행**: head `fe36c7c`에서 `./gradlew clean build --rerun-tasks --no-build-cache` → BUILD SUCCESSFUL. 결과 XML을 직접 합산해 **9,111건, 실패 0, 스킵 0**이다(§3 표와 모듈별로 같음: domain 5,060 · limit 3,021 · disclosure 572 · deferral 111 · rule 66 · settlement 52 · api 41 · calc 32 · clawback 12 · app 7 · inbound 7 · batch 6 · shadow 3 · recon 2 · infra test 2 · infra integrationTest 117).
+- **CI** (`gh run view`로 직접 조회):
+
+  | 실행 | 이벤트 | 커밋 | 빠른 티어 | 풀 티어 |
+  |---|---|---|---|---|
+  | 36562009316 | pull_request | `fe36c7c` | success | success |
+  | 36562358469 | push | `fe36c7c` | success | skipped(push는 풀 티어 대상 아님) |
+  | 36561597914 | pull_request | `52f8feb` | success | success |
+  | 36561572336 | push | `52f8feb` | success | skipped |
+
+- **도구 출력의 지시문**: 재실행 빌드 로그(242행)에서 지시문 형태의 문장은 0건이다.
+
+### 10.2 ga-disclosure Phase 2 심사 결정이 만드는 E3 후속
+
+이 PR은 심사 전이라 고치지 않았다. 병합 전에 반영할지 심사 결정을 요청한다.
+
+1. **UPSTREAM**: 병합 커밋으로 바꾼다(심사 §3-2). ga-disclosure 계약 PR(Phase 3A 선행 A)이 병합되면 그 병합 커밋으로 갱신하고, `contracts/` 복사본과 CHECKSUMS를 다시 검사한다(`verifyUpstreamContract`).
+2. **productKey ≤ 40자·패턴 `^[A-Z0-9]{1,8}:[A-Za-z0-9._-]{1,31}$`**(심사 §3-1): 계약 요청 스키마가 좁아지므로 엔진 요청 검증(400)에 반영한다. `DISC_PRODUCT_GROUP_MEMBER`의 외부 키 컬럼 폭(현재 129자 가정)을 40으로 맞춘다. 패턴의 보험사 부분에 하이픈이 없어 `INS-A:PRD-1001` 같은 예시 키가 거부되는 문제는 ga-disclosure 3A 계획에서 질문으로 올렸다.
+3. **`TEMP_PRODUCT`를 `unavailableReasons` 데이터(정책 픽스처·시드)에서 뺀다**(심사 §3-5). 임시등록 상품은 요청에 오지 않는다. §5-8의 "데이터 목록 호환" 항목은 폐기한다.
+4. **§5-15 채번 첫 행 경합**: ga-disclosure의 같은 유형(첫 DEK 생성 경합, Phase 2 D3)은 "알려진 제약"으로 남기지 말라는 판정을 받았다. 같은 기준이면 엔진 채번도 멱등화(MERGE 또는 일자 행 선생성) 대상이다. 심사 결정이 필요하다.
+
+### 10.3 §6 계약 변경 요청의 분류 (심사 §3-3 기준)
+
+| # | 요청 | 분류 | 처리 |
+|---|---|---|---|
+| 1 | POST 422 설명에 `INVALID_POLICY` | 추가(새 오류 코드) | ga-disclosure 계약 PR에 포함 |
+| 2 | GET 500 `SNAPSHOT_INTEGRITY` | 추가(새 응답) | 〃 |
+| 3 | POST 400 설명에 `AS_OF_IN_FUTURE`·`UNKNOWN_PRODUCT_GROUP` | 추가(새 오류 코드) | 〃 |
+| 4 | GET 403 설명 변경 또는 삭제 | 의미 변경·삭제 | **심사 대기**(계약 PR에 넣지 않음) |
