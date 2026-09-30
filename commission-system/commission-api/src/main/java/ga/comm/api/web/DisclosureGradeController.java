@@ -29,14 +29,16 @@ import java.time.format.DateTimeParseException;
 import java.util.List;
 
 /**
- * 비교설명 등급·순위 API (Phase E3, ga-disclosure 계약 {@code engine-disclosure.openapi.yaml} 1.1.0) — 서비스 위에 얇게.
+ * 비교설명 등급·순위 API (Phase E3, ga-disclosure 계약 {@code engine-disclosure.openapi.yaml} 1.2.0) — 서비스 위에 얇게.
  *
  * <p><b>응답 본문은 저장된 정규 문자열의 바이트 그대로</b>다(POST·GET 모두). Jackson으로 다시 직렬화하지 않으므로 재조회가
  * 발급 응답과 바이트 단위로 같고 ratioToAvg가 재포맷되지 않는다. 인증({@code /internal/**} 서비스 토큰)은 앱의 보안 필터가 한다.
  *
  * <p>오류는 계약 Problem {@code {code, message}}로, 이 컨트롤러 전용 매핑이다(전역 {@link ApiExceptionHandler}의
- * Ambiguous=422 매핑은 기존 API용으로 그대로 둔다): 400 요청 오류 · 403 TENANT_MISMATCH · 404 SNAPSHOT_NOT_FOUND ·
- * 409 AMBIGUOUS_POLICY · 422 NO_POLICY / POLICY_SELF_CHECK_FAILED / INVALID_POLICY · 500 SNAPSHOT_INTEGRITY.
+ * Ambiguous=422 매핑은 기존 API용으로 그대로 둔다): 400 요청 오류(INVALID_REQUEST · AS_OF_IN_FUTURE · UNKNOWN_PRODUCT_GROUP) ·
+ * 403 TENANT_MISMATCH(POST) · 404 SNAPSHOT_NOT_FOUND(없거나 다른 테넌트의 스냅샷) · 409 AMBIGUOUS_POLICY ·
+ * 422 NO_POLICY / POLICY_SELF_CHECK_FAILED / INVALID_POLICY · 500 SNAPSHOT_INTEGRITY. GET의 403은 보안 체인이 낸다
+ * (토큰은 유효하나 인가 거부 — 계약 1.2.0).
  */
 @RestController
 @RequestMapping("/internal/v1/disclosure/commission-grades")
