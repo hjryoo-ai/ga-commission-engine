@@ -33,4 +33,5 @@ dependencies {
     testImplementation("org.testcontainers:oracle-free")
     testImplementation(testFixtures(project(":commission-rule")))
     testImplementation(testFixtures(project(":commission-calc")))
+    testImplementation(testFixtures(project(":commission-disclosure")))
 }

@@ -1,4 +1,4 @@
-<!-- PR = 논리적 변경 1개. 머지는 squash. 아래 체크리스트는 지금까지 대화에서 지켜온 규약의 정착지다. -->
+<!-- PR = 논리적 변경 1개. 머지는 merge commit(squash 금지 — 보고서가 커밋 해시를 인용). 아래 체크리스트는 지금까지 대화에서 지켜온 규약의 정착지다. -->
 
 ## 무엇을 / 왜
 
@@ -28,5 +28,5 @@
 CI (2단, .github/workflows/ci.yml):
   - 모든 푸시/PR: 빠른 티어(단위/H2 + 아키텍처/골든셋, Docker 없음)
   - PR + main 머지: 풀 빌드(Oracle Testcontainers IT + 기동 스모크)
-main 직접 푸시 금지 — PR + CI green + 리뷰 후 squash 머지.
+main 직접 푸시 금지 — PR + CI green + 리뷰 후 merge commit 머지.
 -->

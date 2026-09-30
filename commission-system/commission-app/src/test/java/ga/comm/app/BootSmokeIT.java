@@ -58,6 +58,20 @@ class BootSmokeIT {
         registry.add("spring.datasource.username", oracle::getUsername);
         registry.add("spring.datasource.password", oracle::getPassword);
         // 기본 프로파일 → Flyway가 프레시 컨테이너를 migrate. (운영 prod는 validate-only)
+        // Phase E3: 엔진 인스턴스 테넌트 + 내부 API 서비스 토큰의 SHA-256(원문은 테스트만 안다)
+        registry.add("app.tenant-id", () -> "T1");
+        registry.add("app.internal.service-token-sha256", () -> sha256Hex(SERVICE_TOKEN));
+    }
+
+    static final String SERVICE_TOKEN = "it-service-token-" + BootSmokeIT.class.getSimpleName();
+
+    static String sha256Hex(String s) {
+        try {
+            return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(s.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     @Autowired
@@ -111,6 +125,68 @@ class BootSmokeIT {
         // 5. 역할 분리 — VIEWER는 승인 API(ADMIN 전용)에 접근할 수 없다
         mvc.perform(post("/api/rates/{id}/approve", 1L).with(user("viewer").roles("VIEWER")))
                 .andExpect(status().isForbidden());
+    }
+
+    /**
+     * Phase E3 E2E: 풀 컨텍스트(실 Oracle·실 보안 체인)에서 비교설명 등급 API. 토큰 없음·틀림 401, 테넌트 불일치 403,
+     * 정상 200 → GET 재조회 바이트 동일, 기본 체인의 Basic 사용자는 /internal/**에 들어올 수 없다.
+     */
+    @Test
+    void 비교설명_등급_API_E2E() throws Exception {
+        exec("INSERT INTO DISC_PRODUCT_GROUP (group_code_system, group_code, group_name, apply_from) "
+                + "VALUES ('PG-V1', 'PG-HEALTH-SIMPLE-NR', '(가상) 간편', DATE '2026-01-01')");
+        String[][] products = {{"INS-A", "PRD-1001", "0.84"}, {"INS-B", "PRD-2044", "1.37"}, {"INS-C", "PRD-3120", "1.02"}};
+        for (String[] p : products) {
+            exec("INSERT INTO DISC_PRODUCT_GROUP_MEMBER (group_code_system, group_code, ext_product_key, insurer_cd, product_key, "
+                    + "apply_from) VALUES ('PG-V1', 'PG-HEALTH-SIMPLE-NR', '" + p[0] + ":" + p[1] + "', '" + p[0] + "', '" + p[1]
+                    + "', DATE '2026-01-01')");
+            exec("INSERT INTO COMM_RATE (direction, insurer_cd, product_key, comm_type, installment_no, rate, apply_from, "
+                    + "version_no, status) VALUES ('INBOUND', '" + p[0] + "', '" + p[1] + "', 'FY_COMM', NULL, " + p[2]
+                    + ", DATE '2026-01-01', 1, 'ACTIVE')");
+        }
+        policy("DISC_GRADING_POLICY", "GRADING-2026-07", ga.comm.disclosure.grade.fixture.PolicyFixtures.GRADING_5);
+        policy("DISC_RANKING_POLICY", "RANK-2026-07", ga.comm.disclosure.grade.fixture.PolicyFixtures.RANKING_SHARED);
+
+        String url = "/internal/v1/disclosure/commission-grades";
+        String body = "{\"tenantId\":\"T1\",\"asOfDate\":\"2026-09-23\",\"productGroupCode\":\"PG-HEALTH-SIMPLE-NR\","
+                + "\"products\":[{\"productKey\":\"INS-A:PRD-1001\",\"insurerCode\":\"INS-A\"},"
+                + "{\"productKey\":\"INS-B:PRD-2044\",\"insurerCode\":\"INS-B\"},"
+                + "{\"productKey\":\"INS-C:PRD-3120\",\"insurerCode\":\"INS-C\"}]}";
+
+        // 401: 토큰 없음 / 틀린 토큰 / Basic 사용자(사람 계정)
+        mvc.perform(post(url).contentType("application/json").content(body))
+                .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
+        mvc.perform(post(url).contentType("application/json").content(body).header("Authorization", "Bearer wrong"))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(post(url).contentType("application/json").content(body).header("Authorization", "Basic "
+                        + java.util.Base64.getEncoder().encodeToString("admin:admin".getBytes(java.nio.charset.StandardCharsets.UTF_8))))
+                .andExpect(status().isUnauthorized());
+        // 403: 토큰은 맞지만 다른 테넌트
+        mvc.perform(post(url).contentType("application/json").content(body.replace("\"T1\"", "\"T2\""))
+                        .header("Authorization", "Bearer " + SERVICE_TOKEN))
+                .andExpect(status().isForbidden()).andExpect(jsonPath("$.code").value("TENANT_MISMATCH"));
+        // 200 → GET 바이트 동일
+        org.springframework.test.web.servlet.MvcResult issued = mvc.perform(post(url).contentType("application/json").content(body)
+                        .header("Authorization", "Bearer " + SERVICE_TOKEN))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.results[0].productKey").value("INS-A:PRD-1001"))
+                .andExpect(jsonPath("$.results[0].ratioToAvg").value("0.78"))
+                .andReturn();
+        String snapshotId = com.jayway.jsonpath.JsonPath.read(issued.getResponse().getContentAsString(), "$.snapshotId");
+        assertThat(snapshotId).matches("GRD-\\d{8}-\\d{6}");
+        byte[] refetched = mvc.perform(get(url + "/{id}", snapshotId).header("Authorization", "Bearer " + SERVICE_TOKEN))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
+        assertThat(refetched).isEqualTo(issued.getResponse().getContentAsByteArray());
+        mvc.perform(get(url + "/{id}", snapshotId)).andExpect(status().isUnauthorized());
+    }
+
+    private void policy(String table, String id, String fixture) throws Exception {
+        try (Connection c = dataSource.getConnection(); java.sql.PreparedStatement ps = c.prepareStatement("INSERT INTO " + table
+                + " (policy_version_id, apply_from, status, body, created_by) VALUES (?, DATE '2026-07-01', 'ACTIVE', ?, 'it')")) {
+            ps.setString(1, id);
+            ps.setString(2, ga.comm.disclosure.grade.fixture.PolicyFixtures.read(fixture));
+            ps.executeUpdate();
+        }
     }
 
     private long batchExecutionCount() throws Exception {

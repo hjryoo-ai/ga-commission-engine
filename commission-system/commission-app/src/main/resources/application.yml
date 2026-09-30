@@ -29,6 +29,12 @@ spring:
     serialization:
       write-dates-as-timestamps: false
 
+# 엔진 인스턴스(Phase E3): 테넌트별 인스턴스의 테넌트와 내부 API 서비스 토큰의 SHA-256. 기본값 없음 — 비면 기동 실패(B-13).
+app:
+  tenant-id: ${ENGINE_TENANT_ID:}
+  internal:
+    service-token-sha256: ${ENGINE_SERVICE_TOKEN_SHA256:}
+
 server:
   shutdown: graceful                 # graceful shutdown: 진행 중 요청 완료 후 종료
                                      # (배치 잡은 별도 기동/독립 실행이므로 웹 종료와 분리)

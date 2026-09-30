@@ -11,6 +11,11 @@ import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.core.annotation.Order;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,8 +32,39 @@ import java.util.List;
  * 쓴다(§6.6 실명 요건 완결). 사내 SSO 연동은 후속 — 그때 이 인메모리 사용자를 SSO로 교체한다.
  */
 @Configuration
-@EnableConfigurationProperties(SecurityProperties.class)
+@EnableConfigurationProperties({SecurityProperties.class, InstanceProperties.class})
 public class SecurityConfig {
+
+    /**
+     * 내부 API 체인(Phase E3): {@code /internal/**}는 사람 계정(Basic)이 아니라 서비스 토큰(Bearer)만 받는다. 무상태·CSRF 없음.
+     * 토큰이 없거나 틀리면 401 Problem {@code {code: UNAUTHENTICATED}}. 테넌트 격리(403)는 서비스가 요청 tenantId로 판정한다.
+     * 이 체인이 먼저 매칭되므로(@Order(1)) 아래 기본 체인의 Basic 인증은 /internal/**에 적용되지 않는다.
+     */
+    @Bean
+    @Order(1)
+    public SecurityFilterChain internalApiChain(HttpSecurity http, InstanceProperties instance) throws Exception {
+        http
+                .securityMatcher("/internal/**")
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .httpBasic(basic -> basic.disable())
+                .formLogin(form -> form.disable())
+                .addFilterBefore(new ServiceTokenFilter(instance.requiredServiceTokenSha256()), AuthorizationFilter.class)
+                .authorizeHttpRequests(auth -> auth.anyRequest().hasRole(ServiceTokenFilter.ROLE))
+                .exceptionHandling(e -> e
+                        .authenticationEntryPoint((request, response, ex) -> problem(response, 401, "UNAUTHENTICATED",
+                                "service token is missing or invalid"))
+                        .accessDeniedHandler((request, response, ex) -> problem(response, 403, "FORBIDDEN",
+                                "service token is not allowed here")));
+        return http.build();
+    }
+
+    private static void problem(HttpServletResponse response, int status, String code, String message) throws IOException {
+        response.setStatus(status);
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+        response.getWriter().write("{\"code\":\"" + code + "\",\"message\":\"" + message + "\"}");
+    }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {

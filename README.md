@@ -49,7 +49,7 @@ domain → rule → calc / limit / deferral / clawback → settlement / batch / 
 |---|---|
 | 계약 테스트 | 인메모리 레퍼런스와 Oracle 어댑터에 **동일 스위트**를 돌려 동작 동등성 증명 (불변 원장·멱등키·전기 순서·빈 문자열=NULL 시맨틱) |
 | 동시성 IT (실 Oracle) | 한도 경합 → 정확한 삭감 금액 수렴, 원장 동시 생성 → 유니크 재시도 수렴, 승인 경합 → 래치로 경합 창을 강제로 열어 인덱스 심판 경로 자체를 증명 |
-| property (jqwik) | 한도 불변식, reversal 상쇄, 분급 스케줄 합=원금, 재계산 멱등성 |
+| property (시드 고정 JUnit 파라미터화 `SeededCases`, jqwik 제거) | 한도 불변식, reversal 상쇄, 분급 스케줄 합=원금, 재계산 멱등성, 비교설명 순위↔등급 단조성 |
 | 골든셋 CSV | 규정 경계 케이스(06-30/07-01 체결, 13회차 전후 해약, 감액, 마감 전 정정 …) |
 | 기동 스모크 E2E | 풀 컨텍스트 부팅 → 마이그레이션 → 계산 → REST → 마감 잡 (Testcontainers `gvenzl/oracle-free`) |
 | 공급망 | Gradle dependency verification(sha256) 활성 — 의존성 추가 시 diff 리뷰가 워크플로에 포함 |

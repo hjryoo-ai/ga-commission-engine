@@ -94,7 +94,10 @@ public final class OracleTestSupport {
                 "COMM_RATE_CHANGE_HIST", "COMM_RATE", "LIMIT_RULE",
                 "COMM_TYPE_MST", "AGENT_PAYOUT_RATE",
                 "DEFERRAL_CURVE_DTL", "DEFERRAL_CURVE", "CLAWBACK_RULE", "ORG_OVERRIDE_RATE",
-                "AGENT_GRADE_HIST", "AGENT_ORG_HIST", "AGENT_MST", "ORG_MST");
+                "AGENT_GRADE_HIST", "AGENT_ORG_HIST", "AGENT_MST", "ORG_MST",
+                // Phase E3: 정책·상품군은 비운다. 스냅샷(DISC_GRADE_SNAPSHOT·_ITEM)은 불변 트리거가 DELETE를 거부하므로
+                // 비우지 않고, 채번(DISC_GRADE_SNAPSHOT_SEQ)도 비우지 않는다(같은 날 번호 재사용 → 기존 스냅샷과 PK 충돌 방지).
+                "DISC_GRADING_POLICY", "DISC_RANKING_POLICY", "DISC_PRODUCT_GROUP_MEMBER", "DISC_PRODUCT_GROUP");
         try (Connection connection = dataSource.getConnection();
              Statement statement = connection.createStatement()) {
             for (String table : tables) {

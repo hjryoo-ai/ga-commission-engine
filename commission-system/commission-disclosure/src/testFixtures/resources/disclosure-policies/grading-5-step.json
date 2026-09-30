@@ -1,0 +1,23 @@
+{
+  "measureKey": "FY_SALES_COMMISSION_RATE",
+  "measureParams": { "commType": "FY_COMM", "installmentNo": null },
+  "population": { "groupCodeSystem": "PG-V1", "scope": "GA_CONTRACTED_PRODUCTS", "minPopulation": 3 },
+  "period": { "kind": "TRAILING_QUARTER", "asOfRule": "REQUEST_DATE" },
+  "asOfFutureDaysAllowed": 0,
+  "ratioScale": 2,
+  "ratioRounding": "HALF_UP",
+  "grades": [
+    { "code": "VERY_HIGH", "label": "매우높음", "ordinal": 5, "minRatio": "1.30", "minInclusive": false },
+    { "code": "HIGH", "label": "높음", "ordinal": 4, "minRatio": "1.10", "minInclusive": false, "maxRatio": "1.30", "maxInclusive": true },
+    { "code": "MID", "label": "보통", "ordinal": 3, "minRatio": "0.90", "minInclusive": false, "maxRatio": "1.10", "maxInclusive": true },
+    { "code": "LOW", "label": "낮음", "ordinal": 2, "minRatio": "0.70", "minInclusive": false, "maxRatio": "0.90", "maxInclusive": true },
+    { "code": "VERY_LOW", "label": "매우낮음", "ordinal": 1, "maxRatio": "0.70", "maxInclusive": true }
+  ],
+  "unavailableReasons": {
+    "NO_RATE_DATA": "NO_RATE_DATA",
+    "NOT_IN_GROUP": "NOT_IN_GROUP",
+    "TEMP_PRODUCT": "TEMP_PRODUCT",
+    "OUTSIDE_PERIOD": "OUTSIDE_PERIOD",
+    "INSUFFICIENT_POPULATION": "INSUFFICIENT_POPULATION"
+  }
+}

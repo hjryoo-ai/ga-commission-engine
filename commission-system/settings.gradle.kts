@@ -12,6 +12,7 @@ include(
     "commission-shadow",
     "commission-settlement",
     "commission-batch",
+    "commission-disclosure",
     "commission-api",
     "commission-infra",
     "commission-app",

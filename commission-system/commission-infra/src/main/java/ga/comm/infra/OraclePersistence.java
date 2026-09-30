@@ -93,6 +93,7 @@ public final class OraclePersistence {
         configuration.addMapper(ga.comm.infra.mapper.IncentiveAdminMapper.class);
         configuration.addMapper(AgentDirectoryMapper.class);
         configuration.addMapper(CloseReportMapper.class);
+        configuration.addMapper(ga.comm.infra.mapper.DisclosureGradeMapper.class);
 
         SqlSessionFactory factory = new SqlSessionFactoryBuilder().build(configuration);
         this.session = new SqlSessionTemplate(factory);
@@ -174,6 +175,28 @@ public final class OraclePersistence {
 
     public AgentDirectory agentDirectory() {
         return new OracleAgentDirectory(session.getMapper(AgentDirectoryMapper.class));
+    }
+
+    // ---- 비교설명 등급·순위 (Phase E3) ----
+
+    public ga.comm.disclosure.grade.policy.DisclosurePolicyRepository disclosurePolicyRepository() {
+        return new ga.comm.infra.store.OracleDisclosurePolicyRepository(
+                session.getMapper(ga.comm.infra.mapper.DisclosureGradeMapper.class));
+    }
+
+    public ga.comm.disclosure.grade.group.ProductGroupDirectory productGroupDirectory() {
+        return new ga.comm.infra.store.OracleProductGroupDirectory(
+                session.getMapper(ga.comm.infra.mapper.DisclosureGradeMapper.class));
+    }
+
+    public ga.comm.disclosure.grade.measure.SalesRateLedger salesRateLedger() {
+        return new ga.comm.infra.store.OracleSalesRateLedger(ruleRepository(),
+                session.getMapper(ga.comm.infra.mapper.DisclosureGradeMapper.class));
+    }
+
+    public ga.comm.disclosure.grade.snapshot.GradeSnapshotStore gradeSnapshotStore() {
+        return new ga.comm.infra.store.OracleGradeSnapshotStore(
+                session.getMapper(ga.comm.infra.mapper.DisclosureGradeMapper.class));
     }
 
     /** 마감 리포트 3종 (§7 Phase 11) — 룰 완결성 / MAXVALUE 파티션 적재 / 승인 경합 감지. */

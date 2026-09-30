@@ -10,7 +10,8 @@ public final class TercileGradingPolicy implements GradingPolicy {
 
     @Override
     public String grade(int rank, int total, Money value) {
-        int third = Math.max(1, (int) Math.ceil(total / 3.0));
+        // ⌈total/3⌉을 정수 연산으로(부록 B-1 — double 경유 제거, Phase E3). total ≥ 1에서 Math.ceil(total / 3.0)과 같다.
+        int third = Math.max(1, (total + 2) / 3);
         if (rank <= third) {
             return "A";
         }

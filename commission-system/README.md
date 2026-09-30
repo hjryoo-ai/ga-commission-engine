@@ -65,7 +65,7 @@ DB_URL=jdbc:oracle:thin:@//host:1521/svc DB_USERNAME=... DB_PASSWORD=... \
 ## 테스트 (356건 = 단위/H2·앱스모크 254 + Oracle 통합 102)
 
 - 골든 케이스: 신계약/회차/시책, 2026-06-30↔07-01 한도 경계, 한도 임박·초과·환수 복원, 13회차 전후 해약·철회·부활, 소급 요율 변경 reversal&rebook, 마감→지급 사이클, 분급 4년→7년 데이터 교체.
-- Property(jqwik): Money 산술, 한도 불변식(accum ≤ limit, accum = ΣDTL), 분급 스케줄 합 = 이연 원금.
+- Property(시드 고정 JUnit 파라미터화 `SeededCases` — jqwik 제거·`net.jqwik` 빌드 차단): Money 산술, 한도 불변식(accum ≤ limit, accum = ΣDTL), 분급 스케줄 합 = 이연 원금, 비교설명 순위↔등급 단조성(500세트).
 - replay: 계산 시점 원장 재구성 후 동일 금액 재산출, 소급 변경 검출.
 - **계약 테스트(§8.7)**: 각 Store 포트의 추상 스위트(모듈 testFixtures `contract/`)를 인메모리 레퍼런스와 Oracle 어댑터가 동일하게 상속·통과 — 불변 원장, 멱등키, 상태 전이, 전기 순서(posting_seq), 빈 문자열=NULL 시맨틱.
 - **동시성 경합(§8.6, Oracle 전용)**: 동일 원장 동시 계산 2건 — 뒤진 트랜잭션이 갱신된 누적을 보고 삭감됨(accum ≤ limit 멀티스레드 성립), 신규 원장 동시 생성 uq_limit 재시도, 저장 후 훅 실패 시 전체 롤백(원자성), FOR UPDATE 커밋까지 대기.
