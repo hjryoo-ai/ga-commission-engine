@@ -57,6 +57,28 @@ public final class OracleTestSupport {
         return dataSource;
     }
 
+    /**
+     * 같은 컨테이너에 빈 스키마(사용자)를 하나 더 만들어 그 접속을 돌려준다 — 마이그레이션을 특정 버전까지만 적용해야 하는 시험용(E3.2 V104).
+     * 컨테이너의 SYSTEM 암호는 앱 사용자 암호와 같다(gvenzl 이미지의 ORACLE_PASSWORD). 호출자가 닫는다.
+     */
+    public static synchronized HikariDataSource freshSchema(String user) {
+        persistence();
+        String password = "Probe_" + Long.toHexString(System.nanoTime());
+        try (Connection c = java.sql.DriverManager.getConnection(container.getJdbcUrl(), "system", container.getPassword());
+             Statement st = c.createStatement()) {
+            st.execute("CREATE USER " + user + " IDENTIFIED BY \"" + password + "\" DEFAULT TABLESPACE USERS QUOTA UNLIMITED ON USERS");
+            st.execute("GRANT CONNECT, RESOURCE, CREATE VIEW TO " + user);
+        } catch (Exception e) {
+            throw new IllegalStateException("시험 스키마 생성 실패: " + user, e);
+        }
+        HikariConfig config = new HikariConfig();
+        config.setJdbcUrl(container.getJdbcUrl());
+        config.setUsername(user);
+        config.setPassword(password);
+        config.setMaximumPoolSize(2);
+        return new HikariDataSource(config);
+    }
+
     private static void start() {
         container = new OracleContainer(DockerImageName.parse(IMAGE));
         container.start();
