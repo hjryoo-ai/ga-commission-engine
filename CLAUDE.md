@@ -35,7 +35,7 @@
 
 - **단일 저장소.** 문서·골든셋 CSV·`gradle/verification-metadata.xml`까지 한 저장소. 권한 분리는 저장소가 아니라 경로 단위 리뷰 권한(CODEOWNERS)으로. (CONTRIBUTING)
 - **설계서와 코드는 같은 커밋·PR로 움직인다.** 모든 PR은 "이 변경이 설계서에 반영될 사항인가? 아니오면 왜?"에 답한다. 설계 판단이 바뀌면 같은 PR에서 정본을 갱신하고 근거는 `설계고찰.md`에. (CONTRIBUTING "문서-코드 동기화", 설계서 문서 관리 규약)
-- **트렁크 기반.** `main` 직접 푸시 금지, PR 필수, CI green 필수. 브랜치 `work/phase-<id>`(태그 `phase-<id>`와 이름이 겹치지 않게). 커밋은 작업 단위로 잘게, **머지는 merge commit(squash 금지)** — Phase 보고서가 커밋 해시를 증거로 인용한다. **PR 병합은 수용 심사 회신 뒤에만**, 태그는 먼저 달아도 된다. (CONTRIBUTING "브랜치")
+- **트렁크 기반.** `main` 직접 푸시 금지, PR 필수, CI green 필수. 브랜치 `work/phase-<id>`(태그 `phase-<id>`와 이름이 겹치지 않게). 커밋은 작업 단위로 잘게, **머지는 merge commit(squash 금지)** — Phase 보고서가 커밋 해시를 증거로 인용한다. **PR 병합은 수용 심사 회신 뒤에만**, 태그는 먼저 달아도 된다. 예외: 지시문이 명시한 공유 계약의 표기 변경(의미 변경 없음) PR은 자체 CI 통과 뒤 병합 가능(`UPSTREAM`이 그 병합 커밋을 가리켜야 하므로) — 그 밖은 모두 심사 뒤. (CONTRIBUTING "브랜치", E3.2 수용 심사 §2)
 - **규칙 파일 정정**: 이 파일·CONTRIBUTING·부록 B의 사실 정정(뜻이 바뀌지 않는 오기)은 바로 고치고 보고, 의미 변경은 이유 보고 → 승인 뒤. (CONTRIBUTING "규칙 파일 정정")
 - **태그 이원화.** `phase-N` 태그는 구축 이력(동결), 릴리스는 semver(`v0.x.y`, go-live 게이트 = `v1.0.0`). 문서 버전은 릴리스 버전과 별개. (CONTRIBUTING "버전·태그")
 - **CI 2단.** 모든 푸시/PR: 빠른 티어(단위/H2 + 아키텍처/골든셋, Docker 불필요). PR + main 머지: 풀 빌드(Oracle Testcontainers IT + 기동 스모크). (CONTRIBUTING "CI")
