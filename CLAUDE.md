@@ -28,13 +28,15 @@
 - 속성 테스트는 JUnit 5 `@ParameterizedTest` + `commission-domain` 테스트 픽스처 `SeededCases`(시드는 소스 상수, 케이스 이름에 시드·인덱스, 경계값 명시, 기본 1000건). jqwik 금지. (B-17)
 - 계약 테스트(Store 포트 동작 동등성 스위트)는 testFixtures `contract/`에 두고 인메모리 레퍼런스와 Oracle 어댑터가 같은 스위트를 상속한다. (CONTRIBUTING "단일 저장소", 루트 build.gradle.kts)
 - `contracts/`는 `ga-disclosure` 저장소 `contracts/`의 복사본이다(정본은 저쪽). 이 저장소에서 계약을 고치지 않는다. `contracts/UPSTREAM`은 `ga-disclosure` `main`에서 도달 가능한 병합 커밋을 가리키고, 복사 후 `./gradlew contractChecksums`·`verifyUpstreamContract`로 대조한다. (루트 build.gradle.kts 계약 절, E3 수용 심사 §4-6)
+- **마이그레이션 번호는 전역 단조**: 공통·Oracle 전용 디렉터리가 한 번호 공간, 새 번호는 전체 최댓값 + 1(디렉터리별 재시작 없음), 번호 재사용 금지, 커밋된 마이그레이션은 고치지 않는다(정정은 새 번호). 빈 번호는 `commission-system/docs/db-migrations.md`의 표뿐이고 `MigrationNumberingTest`가 대조한다. (CONTRIBUTING "DB 마이그레이션")
 - dependency verification은 CI에서도 항상 활성. 의존성 추가/metadata 변경 PR은 재생성 diff 리뷰(의도 외 아티팩트 0)를 체크리스트로 둔다. (CONTRIBUTING "CI")
 
 ## 작업 방식
 
 - **단일 저장소.** 문서·골든셋 CSV·`gradle/verification-metadata.xml`까지 한 저장소. 권한 분리는 저장소가 아니라 경로 단위 리뷰 권한(CODEOWNERS)으로. (CONTRIBUTING)
 - **설계서와 코드는 같은 커밋·PR로 움직인다.** 모든 PR은 "이 변경이 설계서에 반영될 사항인가? 아니오면 왜?"에 답한다. 설계 판단이 바뀌면 같은 PR에서 정본을 갱신하고 근거는 `설계고찰.md`에. (CONTRIBUTING "문서-코드 동기화", 설계서 문서 관리 규약)
-- **트렁크 기반.** `main` 직접 푸시 금지, PR 필수, CI green 필수. 브랜치 `work/phase-<id>`(태그 `phase-<id>`와 이름이 겹치지 않게). 커밋은 작업 단위로 잘게, **머지는 merge commit(squash 금지)** — Phase 보고서가 커밋 해시를 증거로 인용한다. (CONTRIBUTING "브랜치")
+- **트렁크 기반.** `main` 직접 푸시 금지, PR 필수, CI green 필수. 브랜치 `work/phase-<id>`(태그 `phase-<id>`와 이름이 겹치지 않게). 커밋은 작업 단위로 잘게, **머지는 merge commit(squash 금지)** — Phase 보고서가 커밋 해시를 증거로 인용한다. **PR 병합은 수용 심사 회신 뒤에만**, 태그는 먼저 달아도 된다. 예외: 지시문이 명시한 공유 계약의 표기 변경(의미 변경 없음) PR은 자체 CI 통과 뒤 병합 가능(`UPSTREAM`이 그 병합 커밋을 가리켜야 하므로) — 그 밖은 모두 심사 뒤. (CONTRIBUTING "브랜치", E3.2 수용 심사 §2)
+- **규칙 파일 정정**: 이 파일·CONTRIBUTING·부록 B의 사실 정정(뜻이 바뀌지 않는 오기)은 바로 고치고 보고, 의미 변경은 이유 보고 → 승인 뒤. (CONTRIBUTING "규칙 파일 정정")
 - **태그 이원화.** `phase-N` 태그는 구축 이력(동결), 릴리스는 semver(`v0.x.y`, go-live 게이트 = `v1.0.0`). 문서 버전은 릴리스 버전과 별개. (CONTRIBUTING "버전·태그")
 - **CI 2단.** 모든 푸시/PR: 빠른 티어(단위/H2 + 아키텍처/골든셋, Docker 불필요). PR + main 머지: 풀 빌드(Oracle Testcontainers IT + 기동 스모크). (CONTRIBUTING "CI")
 - **Phase 지시.** 각 Phase에는 ① 설계서 해당 섹션 ② 부록 B 전문 ③ 완료 기준이 함께 간다. (설계서 §10)
