@@ -116,3 +116,17 @@ PR #3, head `8270235`(보고서 커밋 전).
 
 1. **assertj 직접 버전**: 루트의 `assertj-core:3.27.3` 직접 선언을 Boot BOM 버전(3.27.7)으로 맞출까(권고가 해소된다 — 버전 변경이라 승인 필요)? 같은 곳의 `junit-bom:5.12.2`는 BOM과 이미 같다. 권장: 맞춘다, 다음 정비에서.
 2. **commons-compress**: testcontainers 경유 시험 전용이다. 제약(`constraints`)으로 1.26+를 강제할지, testcontainers 갱신을 기다릴지. 권장: 기다린다(운영 jar에 없음).
+
+## 10. 수용 심사 반영 (2026-10-09, `docs/phase-E3.2-수용심사.md`)
+
+| 심사 | 조치 | 커밋 |
+|---|---|---|
+| 회신 보관 | `docs/phase-E3.2-수용심사.md` | `4c133bb` |
+| §3 assertj 3.27.3 → BOM | 루트의 직접 버전 선언 제거, Boot BOM을 **시험 구성에만** 플랫폼으로(`testImplementation`·`testFixturesApi`) — domain·inbound·recon도 제약만 받고 의존은 늘지 않는다. 전 모듈 assertj 3.27.7(GHSA-rqfh-9r24-8c9r 해소), byte-buddy는 1.18.3(시험)·1.17.8(app). `runtimeClasspath`·`productionRuntimeClasspath`는 전후 동일(해석 결과 대조). 로컬 `clean build --rerun-tasks` 10,200건 실패 0 스킵 0(105 태스크 실행, 빌드 로그 244행에 지시문 형태 문장 0) | `9f8c95e` |
+| §3 commons-compress | 강제 버전 없음, 권고 2건과 "testcontainers 갱신 때 재확인"을 `third-party.md`에 | `9f8c95e` |
+| §3 CI 시험 보고서 | 풀 티어가 `test-reports`(모듈별 HTML 보고서 + 결과 XML)를 올린다 | `2e03701` |
+| §2 계약 표기 변경 PR 예외 | CONTRIBUTING "브랜치" → CLAUDE.md 인용(엔진). ga-disclosure CLAUDE.md는 그쪽 `work/phase-7` 첫 커밋 `4620e15` | `75929ff` |
+
+**CI(1차 증거, `test-reports` 아티팩트의 HTML 카운터로 셈)** — run **37937655302**(pull_request, `75929ff`): 빠른 티어·풀 티어·no-docker 전부 success. **10,200건, 실패 0, 무시 0** — 모듈별 수가 §3 로컬 표와 전부 같다(domain 5,060·limit 3,021·disclosure 1,645·infra 통합 121·deferral 111·rule 66·settlement 52·api 44·calc 32·clawback 12·app 9·infra H2 9·inbound 7·batch 6·shadow 3·recon 2).
+
+이 커밋의 CI는 병합 전에 확인하고, 태그 `e3.2`는 병합 뒤 이 커밋으로 다시 지정한다(E3 선례 — `phase-e3`도 브랜치의 마지막 보고서 커밋).
