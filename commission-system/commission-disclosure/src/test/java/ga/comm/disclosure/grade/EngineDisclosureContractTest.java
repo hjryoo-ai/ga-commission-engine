@@ -123,9 +123,10 @@ class EngineDisclosureContractTest {
         assertThat(lines).contains(hash + "  " + FILE);
         assertThat(Files.readString(CONTRACTS.resolve("UPSTREAM")).trim())
                 .matches(Pattern.compile("^hjryoo-ai/ga-disclosure@[0-9a-f]{40}$"));
-        // 계약 1.1.0: 401·403·422(POST) 응답이 있다(E3 계획 Q3 — ga-disclosure PR #2). 1.2.0: E3.1(ga-disclosure PR #4)
+        // 계약 1.1.0: 401·403·422(POST) 응답이 있다(E3 계획 Q3 — ga-disclosure PR #2). 1.2.0: E3.1(ga-disclosure PR #4).
+        // 1.2.1: E3.2 — format → pattern(표기만)
         JsonNode doc = new YAMLMapper().readTree(Files.readString(CONTRACTS.resolve(FILE)));
-        assertThat(doc.at("/info/version").asText()).isEqualTo("1.2.0");
+        assertThat(doc.at("/info/version").asText()).isEqualTo("1.2.1");
         assertThat(doc.at("/paths/~1internal~1v1~1disclosure~1commission-grades/post/responses").has("422")).isTrue();
     }
 
@@ -146,6 +147,48 @@ class EngineDisclosureContractTest {
         assertThat(get.at("/403/description").asText()).contains("인가 거부").contains("404");
         assertThat(doc.at("/components/schemas/GradeResultUnavailable/properties/reason/description").asText())
                 .contains("TEMP_PRODUCT를 내지 않는다");
+    }
+
+    private static int formatKeywords(JsonNode node) {
+        int n = 0;
+        if (node.isObject()) {
+            for (var it = node.fieldNames(); it.hasNext(); ) {
+                String name = it.next();
+                n += (name.equals("format") ? 1 : 0) + formatKeywords(node.get(name));
+            }
+        } else if (node.isArray()) {
+            for (JsonNode child : node) {
+                n += formatKeywords(child);
+            }
+        }
+        return n;
+    }
+
+    /** E3.2: 계약에 {@code format} 키워드가 없다 — 양쪽 검증기(networknt)가 format을 단언하지 않으므로 형식은 pattern으로만 약속한다. */
+    @Test
+    void 계약에_format_키워드가_없다() throws Exception {
+        assertThat(formatKeywords(new YAMLMapper().readTree(Files.readString(CONTRACTS.resolve(FILE))))).isZero();
+    }
+
+    /**
+     * E3.2: 엔진의 generatedAt(ISO_OFFSET_DATE_TIME, 초 단위 절사)은 0초·UTC 시계에서도 계약 pattern(RFC 3339, 초 필수)을 통과하고,
+     * 초를 생략한 형태(OffsetDateTime.toString()의 0초)는 계약이 거부한다(대조군).
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"2026-09-23T01:15:00.250Z|Asia/Seoul|2026-09-23T10:15:00+09:00", "2026-09-23T01:15:30Z|UTC|2026-09-23T01:15:30Z",
+            "2026-09-23T14:59:59.999999999Z|Asia/Seoul|2026-09-23T23:59:59+09:00"})
+    void generatedAt은_0초와_UTC에서도_계약_pattern을_통과한다(String spec) throws IOException {
+        String[] p = spec.split("\\|");
+        GradeScenario scenario = GradeScenario.standard(PolicyFixtures.GRADING_5, PolicyFixtures.RANKING_SHARED)
+                .product("INS-A:PRD-1001", "0.84").product("INS-B:PRD-2044", "1.37");
+        scenario.clock = java.time.Clock.fixed(java.time.Instant.parse(p[0]), java.time.ZoneId.of(p[1]));
+        String body = scenario.service().issue(GradeScenario.request("INS-A:PRD-1001", "INS-B:PRD-2044")).responseCanonical();
+        assertThat(JSON.readTree(body).get("generatedAt").asText()).isEqualTo(p[2]);
+        assertThat(validateResponse(body)).isEmpty();
+
+        ObjectNode noSeconds = (ObjectNode) JSON.readTree(body);
+        noSeconds.put("generatedAt", "2026-09-23T10:15+09:00");
+        assertThat(schema("CommissionGradesResponse").validate(noSeconds)).isNotEmpty();
     }
 
     /** E3.1 §3-2: 엔진 요청 검증(400)과 계약 요청 스키마가 같은 키를 받고 같은 키를 거부한다 — 한쪽만 바뀌면 실패. */

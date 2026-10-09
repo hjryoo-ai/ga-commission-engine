@@ -21,7 +21,9 @@ dependencies {
     testImplementation("com.networknt:json-schema-validator:1.5.9")
 }
 
-// 계약 파일(저장소 루트 contracts/)을 테스트가 읽는다.
+// 계약 파일(저장소 루트 contracts/)을 테스트가 읽는다. 경로만 넘기면 Gradle이 계약 변경을 모르고 시험을 UP-TO-DATE로 건너뛴다
+// (E3.2 주입 J2에서 확인) — 디렉터리를 입력으로 선언한다.
 tasks.withType<Test>().configureEach {
     systemProperty("engine.contractsDir", rootProject.file("contracts").absolutePath)
+    inputs.dir(rootProject.file("contracts")).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("engineContracts")
 }
