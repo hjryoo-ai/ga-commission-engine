@@ -1,6 +1,8 @@
 # 서드파티 의존성 — Boot BOM 밖 목록과 OSV 조회
 
 > E3.2 항목 5(2026-10-09). **버전은 올리지 않았다** — 취약점은 보고만 한다(지시). 다음 점검 때 이 표를 다시 만든다.
+>
+> **E3.2 수용 심사 §3 반영(같은 날)**: 루트 `build.gradle.kts`의 `assertj-core:3.27.3` 직접 선언을 지워 Boot BOM(3.27.7)이 관리한다 — 버전 올림이 아니라 BOM 관리로의 복귀. Boot 플랫폼을 들이지 않던 3모듈(domain·inbound·recon)은 **시험 구성에만** 같은 BOM을 둔다(제약만, 의존 추가 없음). 결과: 모든 모듈 시험 클래스패스가 assertj 3.27.7, GHSA-rqfh-9r24-8c9r **해소**. 런타임·부트 jar 클래스패스(`runtimeClasspath`·`productionRuntimeClasspath`)는 변경 전후 동일(해석 결과 대조). 아래 표의 assertj·byte-buddy 1.15.11 행은 변경 **전** 기록이다.
 
 ## 조사 방법
 
@@ -45,8 +47,10 @@
 
 | 권고 | 대상 | 고친 버전 | 이 저장소에서의 노출 |
 |---|---|---|---|
-| GHSA-rqfh-9r24-8c9r / CVE-2026-24400 — AssertJ `isXmlEqualTo`가 신뢰할 수 없는 XML을 파싱할 때 XXE | `assertj-core:3.27.3`(시험 클래스패스만) | 3.27.7(= Boot 3.5.16 BOM 버전) | 낮음 — 저장소에 `isXmlEqualTo` 호출 0건(2026-10-09 소스 검색), 시험 입력은 저장소 안 데이터. 해소 경로: 루트의 직접 버전 선언을 BOM 버전으로 맞추는 것 — **승인 필요**(버전 변경) |
+| GHSA-rqfh-9r24-8c9r / CVE-2026-24400 — AssertJ `isXmlEqualTo`가 신뢰할 수 없는 XML을 파싱할 때 XXE | `assertj-core:3.27.3`(시험 클래스패스만) | 3.27.7(= Boot 3.5.16 BOM 버전) | **해소(E3.2 심사 §3)** — 직접 버전 선언 제거, 전 모듈 3.27.7. 이전에도 `isXmlEqualTo` 호출 0건이었다 |
 | GHSA-4265-ccf5-phj5 / CVE-2024-26308 — Pack200 손상 파일에서 OutOfMemoryError | `commons-compress:1.24.0`(시험만) | 1.26.0 | 낮음 — testcontainers가 이미지·파일 전송에 쓴다. 입력은 공식 이미지(`gvenzl/oracle-free`)와 저장소 파일. 운영 jar에 없다 |
 | GHSA-4g9r-vxhx-9pgx / CVE-2024-25710 — 손상된 DUMP 파일에서 무한 루프 | 같음 | 1.26.0 | 같음 |
+
+**commons-compress는 기다린다**(E3.2 심사 §3): 시험 전용·운영 jar 밖. 버전을 강제하지 않는다 — 강제하면 testcontainers와의 호환을 이 저장소가 보증해야 한다. **testcontainers 버전이 바뀔 때(Boot BOM 갱신) 이 두 권고(GHSA-4265-ccf5-phj5·GHSA-4g9r-vxhx-9pgx)를 다시 확인한다.**
 
 운영 jar(`productionRuntimeClasspath`)의 BOM 밖 의존 5개(JCS·MyBatis 둘·HdrHistogram·LatencyUtils)에는 OSV 결과가 없다.

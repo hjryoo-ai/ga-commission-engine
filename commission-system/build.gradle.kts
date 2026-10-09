@@ -25,11 +25,14 @@ subprojects {
         }
     }
 
+    // 시험 라이브러리 버전은 Boot BOM이 정한다(E3.2 심사 §3): assertj를 직접 버전(3.27.3, CVE-2026-24400)으로 선언하던 것을 지우고,
+    // Boot 플랫폼을 들이지 않는 모듈(domain·inbound·recon)도 시험 구성에만 같은 BOM을 둔다 — 버전 제약만 더하고 의존은 더하지 않는다.
     dependencies {
+        "testImplementation"(platform("org.springframework.boot:spring-boot-dependencies:3.5.16"))
         "testImplementation"(platform("org.junit:junit-bom:5.12.2"))
         "testImplementation"("org.junit.jupiter:junit-jupiter")
         "testRuntimeOnly"("org.junit.platform:junit-platform-launcher")
-        "testImplementation"("org.assertj:assertj-core:3.27.3")
+        "testImplementation"("org.assertj:assertj-core")
     }
 
     // net.jqwik 차단(Phase E3-0): jqwik 1.10부터 AI 코딩 에이전트 사용 배제 조항과 테스트 출력 지시문 삽입을 가진다.
@@ -47,9 +50,10 @@ subprojects {
     // 인메모리 레퍼런스와 Oracle 어댑터가 같은 스위트를 상속한다.
     plugins.withId("java-test-fixtures") {
         dependencies {
+            "testFixturesApi"(platform("org.springframework.boot:spring-boot-dependencies:3.5.16"))
             "testFixturesApi"(platform("org.junit:junit-bom:5.12.2"))
             "testFixturesApi"("org.junit.jupiter:junit-jupiter-api")
-            "testFixturesApi"("org.assertj:assertj-core:3.27.3")
+            "testFixturesApi"("org.assertj:assertj-core")
         }
     }
 
