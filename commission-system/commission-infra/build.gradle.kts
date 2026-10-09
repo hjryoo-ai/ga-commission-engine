@@ -64,3 +64,8 @@ val integrationTest = tasks.register<Test>("integrationTest") {
 tasks.check {
     dependsOn(integrationTest)
 }
+
+// MigrationNumberingTest(E3.2)는 docs/db-migrations.md의 빈 번호 표를 읽는다 — 문서만 바뀌어도 시험이 다시 돌게 입력으로 선언한다.
+tasks.named<Test>("test") {
+    inputs.file(rootProject.file("docs/db-migrations.md")).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("migrationNumberingDoc")
+}
