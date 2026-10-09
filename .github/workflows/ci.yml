@@ -55,6 +55,17 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Full build (Testcontainers Oracle)
         run: ./gradlew build --no-daemon
+      # E3.2 심사 §3: 시험 건수의 1차 증거를 CI에도 남긴다(ga-disclosure `test-reports`와 같은 방식 — 보고서가 HTML 카운터로 센다).
+      # 경로는 작업 디렉터리가 아니라 저장소 루트 기준이다.
+      - name: Test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            commission-system/*/build/reports/tests/
+            commission-system/*/build/test-results/**/*.xml
+          if-no-files-found: error
 
   no-docker:
     name: Docker 없음 → 통합 테스트 실패 (스킵 아님)
