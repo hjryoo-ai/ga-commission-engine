@@ -96,6 +96,7 @@ public final class OraclePersistence {
         configuration.addMapper(ga.comm.infra.mapper.DisclosureGradeMapper.class);
         configuration.addMapper(ga.comm.infra.mapper.OutboxMapper.class);
         configuration.addMapper(ga.comm.infra.mapper.PayoutStatementMapper.class);
+        configuration.addMapper(ga.comm.infra.mapper.AgentMasterMapper.class);
 
         SqlSessionFactory factory = new SqlSessionFactoryBuilder().build(configuration);
         this.session = new SqlSessionTemplate(factory);
@@ -205,6 +206,10 @@ public final class OraclePersistence {
 
     public ga.comm.outbox.OutboxStore outboxStore() {
         return new ga.comm.infra.store.OracleOutboxStore(session.getMapper(ga.comm.infra.mapper.OutboxMapper.class));
+    }
+
+    public ga.comm.outbox.feed.AgentMasterReader agentMasterReader() {
+        return new ga.comm.infra.store.OracleAgentMasterReader(session.getMapper(ga.comm.infra.mapper.AgentMasterMapper.class));
     }
 
     public ga.comm.settlement.PayoutStatementStore payoutStatementStore() {

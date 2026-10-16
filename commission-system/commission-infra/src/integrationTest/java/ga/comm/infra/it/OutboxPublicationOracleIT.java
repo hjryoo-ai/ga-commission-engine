@@ -8,6 +8,7 @@ import ga.comm.domain.time.CloseYm;
 import ga.comm.domain.type.EventType;
 import ga.comm.domain.type.RecipientType;
 import ga.comm.infra.OraclePersistence;
+import ga.comm.outbox.feed.AgentSnapshotPublisher;
 import ga.comm.outbox.fixture.OutboxEngine;
 import ga.comm.outbox.publish.OutboxAdjustmentStore;
 import ga.comm.outbox.publish.OutboxClawbackReceivableStore;
@@ -34,7 +35,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * E1 C3 — 발행 지점마다(설계서 §6.8 발행 지점 표, 업무 경로 11행 — AgentSnapshot은 잡 IT) 실제 Oracle에서: 업무 트랜잭션 안에서는 그 이벤트가
+ * E1 C3 — 발행 지점마다(설계서 §6.8 발행 지점 표 12행 — 업무 경로 11 + AgentSnapshot) 실제 Oracle에서: 업무 트랜잭션 안에서는 그 이벤트가
  * 적재돼 보이고(공허한 시험이 아님), 업무가 롤백되면 {@code OUTBOX_EVENT}에 아무것도 남지 않는다. 같은 일을 커밋하면 남는다(대조).
  * 발행을 별도 트랜잭션으로 옮기면 롤백 뒤에도 행이 남아 실패한다(주입 I3).
  */
@@ -190,5 +191,27 @@ class OutboxPublicationOracleIT {
         List<String> kinds = jdbc.queryForList("SELECT DISTINCT aggregate_kind FROM OUTBOX_EVENT WHERE event_type = 'AdjustmentPosted'",
                 String.class);
         assertThat(kinds).containsExactly("ADJUSTMENT");
+    }
+
+    @Test
+    void 설계사_스냅샷() {
+        jdbc.update("INSERT INTO ORG_MST (org_id, org_name, org_level) VALUES ('H1', '본부1', 'HQ')");
+        jdbc.update("INSERT INTO ORG_MST (org_id, org_name, org_level, parent_org) VALUES ('B1', '지점1', 'BRANCH', 'H1')");
+        jdbc.update("INSERT INTO ORG_MST (org_id, org_name, org_level, parent_org) VALUES ('T1', '팀1', 'TEAM', 'B1')");
+        jdbc.update("INSERT INTO AGENT_MST (agent_id, agent_name, appointed_on) VALUES ('A-1001', '설계사A', DATE '2024-03-01')");
+        jdbc.update("INSERT INTO AGENT_GRADE_HIST (agent_id, grade_cd, apply_from) VALUES ('A-1001', 'SR', DATE '2025-01-01')");
+        for (String org : new String[]{"T1", "B1", "H1"}) {
+            jdbc.update("INSERT INTO AGENT_ORG_HIST (agent_id, org_id, apply_from) VALUES ('A-1001', ?, DATE '2025-06-01')", org);
+        }
+        AgentSnapshotPublisher snapshots = new AgentSnapshotPublisher(p.agentMasterReader(), p.agentDirectory(), e.publisher);
+        assertThat(p.inTx(snapshots::agentIds)).containsExactly("A-1001");
+
+        Runnable work = () -> snapshots.publish("A-1001", LocalDate.of(2026, 9, 1));
+        rolledBack(work, AgentSnapshotPublisher.TYPE);
+        committed(work, AgentSnapshotPublisher.TYPE);
+        String payload = jdbc.queryForObject("SELECT payload FROM OUTBOX_EVENT WHERE event_type = 'AgentSnapshot' "
+                + "ORDER BY event_no DESC FETCH FIRST 1 ROWS ONLY", String.class);
+        assertThat(payload).contains("\"orgPath\":\"/H1/B1/T1\"", "\"grade\":\"SR\"", "\"validFrom\":\"2025-06-01\"",
+                "\"status\":\"ACTIVE\"", "\"name\":\"설계사A\"");
     }
 }

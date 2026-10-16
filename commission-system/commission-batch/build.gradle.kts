@@ -7,6 +7,7 @@ dependencies {
 
     api(project(":commission-settlement"))
     api(project(":commission-recon"))
+    api(project(":commission-outbox"))   // 순번 부여·AgentSnapshot 부트스트랩 잡(Phase E1 P8)
 
     // Spring Batch 5 배선 (설계서 §10 Phase 11) — 메타테이블은 Flyway로 관리한다 (자동 초기화 없음)
     api("org.springframework.batch:spring-batch-core")
@@ -19,6 +20,7 @@ dependencies {
     testImplementation(testFixtures(project(":commission-clawback")))
     testImplementation(testFixtures(project(":commission-deferral")))
     testImplementation(testFixtures(project(":commission-settlement")))
+    testImplementation(testFixtures(project(":commission-outbox")))
     // 배치 흐름 테스트용 잡 저장소: H2 + Spring Batch 동봉 스키마 (Flyway와 무관한 자립 구성)
     testImplementation("com.h2database:h2")
 }
