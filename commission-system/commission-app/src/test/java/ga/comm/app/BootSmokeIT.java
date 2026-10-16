@@ -227,6 +227,24 @@ class BootSmokeIT {
         assertThat(agent.path("seq").asLong()).isEqualTo(head + 1);
         assertThat(agent.path("type").asText()).isEqualTo("AgentSnapshot");
         assertThat(agent.path("payload").path("orgPath").asText()).isEqualTo("/H1/B1/T1");
+
+        // C8 이벤트 쪽 마감 불변식(P11): 8월은 첫 시험에서 마감됐다 — 8월 날짜로 늦게 들어온 신계약은 운영 리졸버가 9월로 보낸다
+        persistence.inTx(() -> calculator.process(EventFixtures.newContract(new ga.comm.domain.id.PolicyNo("POL-2026-0009"),
+                java.time.LocalDate.of(2026, 8, 20), ga.comm.domain.money.Money.won(300_000), java.util.Map.of())));
+        com.fasterxml.jackson.databind.JsonNode late = feed(get(url).param("afterSeq", Long.toString(head + 1))
+                .header("Authorization", bearer));
+        java.util.List<com.fasterxml.jackson.databind.JsonNode> lateCalcs = new java.util.ArrayList<>();
+        late.path("events").forEach(ev -> {
+            if (ev.path("type").asText().equals("CommissionCalculated")) {
+                lateCalcs.add(ev);
+            }
+        });
+        com.fasterxml.jackson.databind.JsonNode all = feed(get(url).param("afterSeq", "0").param("limit", "1000")
+                .header("Authorization", bearer));
+        java.util.List<com.fasterxml.jackson.databind.JsonNode> envelopes = new java.util.ArrayList<>();
+        all.path("events").forEach(envelopes::add);
+        assertThat(ga.comm.outbox.fixture.CloseInvariant.violations(envelopes)).isEmpty();
+        assertThat(lateCalcs).isNotEmpty().allSatisfy(ev -> assertThat(ev.path("payload").path("closeYm").asText()).isEqualTo("202609"));
     }
 
     private com.fasterxml.jackson.databind.JsonNode feed(org.springframework.test.web.servlet.RequestBuilder request) throws Exception {
