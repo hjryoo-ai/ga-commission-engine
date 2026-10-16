@@ -2,6 +2,29 @@
 
 > 브랜치 `work/e1`(`85b4c71` + 지시문 보관 `3e369e7`). **승인 뒤 2단계.** 포털 계약 v1.1은 병합됐다 — 포털 PR #2 병합 커밋 **`f30d026ae51cb7885e2536b3afc1b5a038c3a140`**(포털 `main` CI run 38954273360 success). 이것이 `contracts/shared/ga-agent-portal/UPSTREAM`이다.
 
+## 승인 반영 (2026-10-17, `docs/phase-E1-계획승인.md`) — 아래 본문보다 우선한다
+
+Q1~Q5·P4~P12 전부 권장안으로 승인. 본문과 달라지거나 더해진 것:
+
+| # | 반영 |
+|---|---|
+| `UPSTREAM` | 포털 계약 **v1.1.1** 병합 커밋(포털 PR — L1 `LimitLedgerRebased.postingSeq` 선택, L2 `paidAt` 뜻, L3 `limitCutPolicy` 뜻). `f30d026`이 아니다. 해시를 받기 전에는 2단계로 가지 않는다 |
+| Q1 / P1 | `LIMIT_DEFER` 발행 없음. 설계서 §14에 "DEFER_AFTER_FY 실제 이연(초년도 종료 후 지급) 미구현 — 새 Step", §6.1-4 "② 초년도 종료 후 이연"에 "(현재 삭감과 동일 동작, §14)" |
+| Q2 / P2 | `LimitLedgerRebased`를 **E1에서 발행**. `postingSeq` = 마지막 `posting_seq`, 전기가 없으면 생략. `reason` 닫힌 열거 **`PREMIUM_REDUCED`·`PREMIUM_INCREASED`**(한도가 줄면·늘면). `LIMIT_LEDGER_HIST`를 아무도 쓰지 않는 사실은 설계서 주석(표는 지우지 않는다) |
+| Q3 / P3 | 분급 취소 리스너·reversal 훅을 **별도 커밋**으로 앱 조립에. 같은 커밋에 **조립 시험**: 운영 조립의 `CalcResultListener`·`ReversalHook` 클래스 집합 = 골든 엔진 조립의 집합. 주입 **I13**(조립에서 하나 제거 → 실패). DECISIONS·`설계고찰.md`에 "E1 이전부터의 결함, E1에서 수정" |
+| Q4 / P9 | ArchUnit 없음. 원문 스캔: 업무 모듈 `main`의 `import ga.comm.outbox` 0 + `project(":commission-outbox")`를 참조하는 `build.gradle.kts`는 `infra`·`api`·`batch`·`app`뿐. I12는 Gradle 순환 |
+| Q5 / P7 | 앱 전역 `Clock` 빈 하나(공시 등급의 Asia/Seoul 시계와 통합 — 시간대 그대로). `SettleCloseStore.transition`은 **`CLOSED`일 때만** `closed_at`을 쓴다(CLOSING·OPEN 전이는 건드리지 않는다 — 지금의 덮어쓰기에서 바뀌는 동작: 설계서 §7·§5.9 주석, 보고서) |
+| P4 | `PayoutCompleted.gross` ≠ `gross_net` — 지시문 D-6 오류 |
+| P5 | `AdjustmentPosted`만. `PayoutCompleted.adjustment` 없음, `StatementConfirmed.adjustment`는 넣는다. 설계서 §14 "정정이 마감·지급에 읽히지 않는다 — 호출자도 없다" |
+| P6 | `PAYOUT_STATEMENT`(V107): `run_seq`·수급자·`payable`·`income_tax`·`local_tax`·`net_pay`·`paid_at`·`settlement_id` FK + `UNIQUE (settlement_id)`. `paid_at` = 정산행 기록·PAID 전이 시각. 설계서 §5.9, §7 ③ "지급명세 영속" |
+| P8 | 피드 핸들러: **부여는 쓰기 트랜잭션 하나로 먼저 끝내고**(한 번에 최대 N건 — 파라미터), 읽기는 그 뒤 **별도 읽기 전용 트랜잭션** |
+| P11 | `ClosedMonthGuardedCalcStore`가 운영 조립에 없다는 사실을 설계서 §6.4 문구와 대조해 결함/의도 판단을 보고서에 |
+| §3 | 증명 ③에 **단일 인스턴스 가정**(IDENTITY 단조성은 단일 인스턴스에서 — RAC 범위 밖). H2 티어는 `synchronized` 인메모리와 공통 V105 둘 다 |
+| §5 | 검증기 1.5.9 ↔ 3.0.6 판정이 다르면 **엔진 쪽을 올리지 않고** 어느 쪽이 2020-12에 맞는지 적어 보고 — 그 자리에서 결정 |
+| C10 | 포털 A-1 대조 = 차이 표 + **타입 순서 일치 여부**를 따로 |
+| 주입 | **13건**(I1~I13), ID 단위 |
+| 지시문 오류 | 보고서 "지시문 오류"와 `설계고찰.md`에 여덟 건: D-4 `LIMIT_DEFER`, D-6 `gross`(= `gross_net`), D-9 `LIMIT_LEDGER_HIST`·`postingSeq ≥ 1`, D-10 취소 리스너, D-14 시계, D-15 ArchUnit, D-1·D-8 스케줄러·명령, §2-4 리스너 구현 |
+
 이번 계획을 위해 엔진을 다시 읽었다(2026-10-17, `85b4c71`). **지시문의 전제 가운데 엔진 코드와 다른 것이 열두 개 있다(§0).** 그중 셋(P1·P2·P3)은 계약이나 업무 동작을 바꿔야 풀리므로 지시문 §0 "바꿀 일이 있으면 멈추고 보고"에 따라 결정을 묻는다. 나머지는 권장안으로 진행하고 보고서에 적는다.
 
 ## 0. 지시문 전제 ↔ 엔진 사실
