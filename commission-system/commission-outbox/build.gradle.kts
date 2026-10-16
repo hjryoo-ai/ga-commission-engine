@@ -51,3 +51,16 @@ tasks.named<Test>("test") {
         outputs.upToDateWhen { false }
     }
 }
+
+// 모듈 경계 원문 스캔(E1 Q4 — ArchUnit 없이): 업무 모듈 main에 ga.comm.outbox import 0, project(":commission-outbox")를 참조하는
+// build.gradle.kts는 infra·api·batch·app뿐, 아웃박스 main은 Spring 무의존. 소스셋 밖 파일을 읽으므로 전부 입력으로 선언한다.
+val boundaryModules = listOf("commission-domain", "commission-rule", "commission-calc", "commission-limit", "commission-deferral",
+    "commission-clawback", "commission-inbound", "commission-recon", "commission-shadow", "commission-settlement", "commission-disclosure",
+    "commission-outbox", "commission-batch", "commission-api", "commission-infra", "commission-app")
+tasks.named<Test>("test") {
+    systemProperty("engine.rootDir", rootProject.projectDir.absolutePath)
+    boundaryModules.forEach { m ->
+        inputs.dir(rootProject.file("$m/src/main")).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("boundarySources-$m")
+        inputs.file(rootProject.file("$m/build.gradle.kts")).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("boundaryBuild-$m")
+    }
+}
