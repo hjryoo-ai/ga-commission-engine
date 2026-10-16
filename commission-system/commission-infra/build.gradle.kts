@@ -26,6 +26,7 @@ dependencies {
     api(project(":commission-settlement"))
     api(project(":commission-inbound"))
     api(project(":commission-disclosure"))   // 비교설명 등급·순위 포트의 Oracle 어댑터(Phase E3)
+    api(project(":commission-outbox"))       // 아웃박스 저장 포트의 Oracle 어댑터(Phase E1)
 
     implementation("org.mybatis:mybatis:3.5.19")
     implementation("org.mybatis:mybatis-spring:3.0.6")
@@ -35,6 +36,8 @@ dependencies {
     implementation("org.flywaydb:flyway-core")
 
     testImplementation("com.h2database:h2")
+    testImplementation(testFixtures(project(":commission-outbox")))       // H2 티어에서 아웃박스 계약 스위트(E1)
+    testImplementation(testFixtures(project(":commission-settlement")))   // H2 티어에서 지급명세 계약 스위트(E1)
 
     "integrationTestImplementation"(testFixtures(project(":commission-rule")))
     "integrationTestImplementation"(testFixtures(project(":commission-calc")))
@@ -44,6 +47,7 @@ dependencies {
     "integrationTestImplementation"(testFixtures(project(":commission-settlement")))
     "integrationTestImplementation"(testFixtures(project(":commission-inbound")))
     "integrationTestImplementation"(testFixtures(project(":commission-disclosure")))
+    "integrationTestImplementation"(testFixtures(project(":commission-outbox")))
     "integrationTestImplementation"(project(":commission-batch"))
     "integrationTestImplementation"(project(":commission-shadow")) // 섀도 런 실 Oracle 경로 IT
 

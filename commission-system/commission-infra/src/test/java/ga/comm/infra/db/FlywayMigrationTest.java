@@ -51,7 +51,8 @@ class FlywayMigrationTest {
                 "COMM_RATE_CHANGE_HIST",
                 "INCENTIVE_MST", "INCENTIVE_CHANGE_HIST",
                 "DISC_GRADING_POLICY", "DISC_RANKING_POLICY", "DISC_PRODUCT_GROUP", "DISC_PRODUCT_GROUP_MEMBER",
-                "DISC_GRADE_SNAPSHOT", "DISC_GRADE_SNAPSHOT_ITEM"
+                "DISC_GRADE_SNAPSHOT", "DISC_GRADE_SNAPSHOT_ITEM",
+                "OUTBOX_EVENT", "OUTBOX_SEQ", "PAYOUT_STATEMENT"
         ));
     }
 
