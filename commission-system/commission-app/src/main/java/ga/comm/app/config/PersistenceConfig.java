@@ -10,6 +10,9 @@ import ga.comm.infra.OraclePersistence;
 import ga.comm.infra.store.OracleIncentiveApprovalRunner;
 import ga.comm.infra.store.OracleRateApprovalRunner;
 import ga.comm.limit.LimitLedgerStore;
+import ga.comm.outbox.OutboxStore;
+import ga.comm.outbox.publish.OutboxPublisher;
+import ga.comm.outbox.publish.PublishingStores;
 import ga.comm.rule.IncentiveRepository;
 import ga.comm.rule.RuleRepository;
 import ga.comm.rule.admin.CommRateAdminStore;
@@ -17,6 +20,7 @@ import ga.comm.rule.admin.IncentiveAdminStore;
 import ga.comm.settlement.AdjustmentService;
 import ga.comm.settlement.AgentSettlementStore;
 import ga.comm.settlement.CloseReport;
+import ga.comm.settlement.PayoutStatementStore;
 import ga.comm.settlement.SettleCloseStore;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,6 +28,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import javax.sql.DataSource;
+import java.time.Clock;
 import java.util.List;
 
 /**
@@ -50,29 +55,55 @@ public class PersistenceConfig {
         return p.txTemplate();
     }
 
+    /** 아웃박스(Phase E1) — 업무 트랜잭션 안에서 순번 없이 적재, 순번은 피드·잡이 별도 트랜잭션에서. */
     @Bean
-    public PolicyEventStore policyEventStore(OraclePersistence p) {
-        return p.policyEventStore();
+    public OutboxStore outboxStore(OraclePersistence p) {
+        return p.outboxStore();
     }
 
     @Bean
-    public CommCalcStore commCalcStore(OraclePersistence p) {
-        return p.commCalcStore();
+    public OutboxPublisher outboxPublisher(OutboxStore outboxStore, Clock clock) {
+        return new OutboxPublisher(outboxStore, clock);
+    }
+
+    /**
+     * 발행 지점(설계서 §6.8): 업무 저장소 여섯을 발행 데코레이터로 감싼다 — 아래 저장소 빈은 전부 감싼 것이므로 계산·정정·분급·지급·정정 경로가
+     * 같은 호출(= 같은 트랜잭션)에서 이벤트를 적재한다. 업무 코드는 아웃박스를 모른다.
+     */
+    @Bean
+    public PublishingStores publishingStores(OraclePersistence p, OutboxPublisher publisher) {
+        return PublishingStores.wrap(publisher, p.policyEventStore(), p.commCalcStore(), p.limitLedgerStore(),
+                p.deferralScheduleStore(), p.clawbackReceivableStore(), p.adjustmentStore());
     }
 
     @Bean
-    public LimitLedgerStore limitLedgerStore(OraclePersistence p) {
-        return p.limitLedgerStore();
+    public PolicyEventStore policyEventStore(PublishingStores s) {
+        return s.events();
     }
 
     @Bean
-    public DeferralScheduleStore deferralScheduleStore(OraclePersistence p) {
-        return p.deferralScheduleStore();
+    public CommCalcStore commCalcStore(PublishingStores s) {
+        return s.calcs();
     }
 
     @Bean
-    public ClawbackReceivableStore clawbackReceivableStore(OraclePersistence p) {
-        return p.clawbackReceivableStore();
+    public LimitLedgerStore limitLedgerStore(PublishingStores s) {
+        return s.ledgers();
+    }
+
+    @Bean
+    public DeferralScheduleStore deferralScheduleStore(PublishingStores s) {
+        return s.schedules();
+    }
+
+    @Bean
+    public ClawbackReceivableStore clawbackReceivableStore(PublishingStores s) {
+        return s.receivables();
+    }
+
+    @Bean
+    public PayoutStatementStore payoutStatementStore(OraclePersistence p) {
+        return p.payoutStatementStore();
     }
 
     @Bean
@@ -86,8 +117,8 @@ public class PersistenceConfig {
     }
 
     @Bean
-    public AdjustmentService.AdjustmentStore adjustmentStore(OraclePersistence p) {
-        return p.adjustmentStore();
+    public AdjustmentService.AdjustmentStore adjustmentStore(PublishingStores s) {
+        return s.adjustments();
     }
 
     @Bean

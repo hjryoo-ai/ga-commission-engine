@@ -8,6 +8,9 @@ import ga.comm.domain.type.CalcStatus;
 import ga.comm.limit.LimitLedger;
 import ga.comm.limit.LimitLedgerStore;
 
+import java.time.Clock;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -30,15 +33,23 @@ public class MonthCloseService {
     private final LimitLedgerStore ledgerStore;
     private final SettleCloseStore closeStore;
     private final List<CloseHook> hooks;
+    private final Clock clock;
+    private final List<MonthCloseListener> listeners;
 
+    /**
+     * @param clock     확정 시각의 출처(주입된 시계 — v1.2.5). {@code closed_at}과 마감 이벤트의 {@code closedAt}이 같은 값이다
+     * @param listeners 확정 뒤 같은 트랜잭션에서 통지(아웃박스 StatementConfirmed — Phase E1)
+     */
     public MonthCloseService(CommCalcStore calcStore, PolicyEventStore eventStore,
                              LimitLedgerStore ledgerStore, SettleCloseStore closeStore,
-                             List<CloseHook> hooks) {
+                             List<CloseHook> hooks, Clock clock, List<MonthCloseListener> listeners) {
         this.calcStore = Objects.requireNonNull(calcStore);
         this.eventStore = Objects.requireNonNull(eventStore);
         this.ledgerStore = Objects.requireNonNull(ledgerStore);
         this.closeStore = Objects.requireNonNull(closeStore);
         this.hooks = List.copyOf(hooks);
+        this.clock = Objects.requireNonNull(clock);
+        this.listeners = List.copyOf(listeners);
     }
 
     public record CheckItem(String name, boolean passed, String detail) {
@@ -98,9 +109,17 @@ public class MonthCloseService {
                 calcStore.transition(record.calcId(), CalcStatus.CONFIRMED);
             }
         }
-        // 강제 마감이면 사유를 업무 테이블(SETTLE_CLOSE)에 정본으로 영속한다(v1.1.5 §7).
+        // 강제 마감이면 사유를 업무 테이블(SETTLE_CLOSE)에 정본으로 영속한다(v1.1.5 §7). 확정 시각은 주입된 시계(v1.2.5).
+        OffsetDateTime closedAt = OffsetDateTime.now(clock).truncatedTo(ChronoUnit.SECONDS);
         closeStore.transition(ym, SettleCloseStore.CloseState.CLOSED, closedBy,
-                force ? forceReason : null);
+                force ? forceReason : null, closedAt.toLocalDateTime());
+        // ⑤ 확정 통지(Phase E1 D-5) — 같은 트랜잭션. 레코드는 상태와 무관하게 그 달 전부(전 상태 합산 §3.0)
+        if (!listeners.isEmpty()) {
+            List<CommCalcRecord> confirmed = calcStore.findByCloseYm(ym);
+            for (MonthCloseListener listener : listeners) {
+                listener.onConfirmed(ym, closedAt, confirmed);
+            }
+        }
         return new CloseResult(ym, true, checks);
     }
 }

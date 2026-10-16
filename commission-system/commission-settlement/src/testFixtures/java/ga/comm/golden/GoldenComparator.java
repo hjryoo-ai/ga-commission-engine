@@ -14,18 +14,18 @@ import java.util.stream.Collectors;
  * 기대 vs 실제 비교 — 불일치를 <b>정산 담당자가 읽을 수 있는 형태</b>로 낸다(설계서 §8.1).
  * 각 불일치는 [무엇을 / 어느 케이스 좌표에서 / 기대 얼마 vs 실제 얼마 / 차이]와 원인 후보를 담는다.
  */
-final class GoldenComparator {
+public final class GoldenComparator {
 
     private final GoldenCase gc;
     private final GoldenEngine engine;
 
-    GoldenComparator(GoldenCase gc, GoldenEngine engine) {
+    public GoldenComparator(GoldenCase gc, GoldenEngine engine) {
         this.gc = gc;
         this.engine = engine;
     }
 
     /** 불일치 목록. 비어 있으면 케이스 통과. */
-    List<String> mismatches() {
+    public List<String> mismatches() {
         List<String> diffs = new ArrayList<>();
         compareLines(diffs);
         compareLedgers(diffs);

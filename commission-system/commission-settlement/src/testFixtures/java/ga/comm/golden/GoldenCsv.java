@@ -21,7 +21,7 @@ import java.util.Map;
  * <p>따옴표 escape 등 복잡한 CSV 방언은 의도적으로 지원하지 않는다 — 골든 케이스는 사람이 쓰고 읽는
  * 단순 표여야 하며, 콤마·따옴표가 필요한 자유 텍스트 값을 두지 않는 것이 스키마 규약이다.
  */
-final class GoldenCsv {
+public final class GoldenCsv {
 
     /** 헤더명 → 값. 없는 헤더 조회는 빈 문자열(누락과 빈 값을 동일 취급 — 선택 컬럼 생략 허용). */
     static final class Row {
@@ -80,7 +80,7 @@ final class GoldenCsv {
     }
 
     /** {@code key,value} 세로 표를 맵으로 읽는다(case.csv 용). */
-    static Map<String, String> readKeyValue(Path file) {
+    public static Map<String, String> readKeyValue(Path file) {
         Map<String, String> map = new LinkedHashMap<>();
         for (String[] cols : rawLines(file)) {
             if (cols.length >= 1 && cols[0].trim().equalsIgnoreCase("field")) {

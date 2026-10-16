@@ -5,9 +5,10 @@ import ga.comm.domain.time.CloseYm;
 import ga.comm.infra.mapper.AdjustmentMapper;
 import ga.comm.settlement.AdjustmentService;
 
+import java.util.List;
 import java.util.Objects;
 
-/** ADJUSTMENT Oracle 어댑터 — INSERT만 존재한다 (마감 후 정정, §6.4). */
+/** ADJUSTMENT Oracle 어댑터 — INSERT와 귀속월 조회만 존재한다 (마감 후 정정, §6.4). */
 public class OracleAdjustmentStore implements AdjustmentService.AdjustmentStore {
 
     private final AdjustmentMapper mapper;
@@ -28,5 +29,13 @@ public class OracleAdjustmentStore implements AdjustmentService.AdjustmentStore 
         mapper.insert(row);
         return new AdjustmentService.Adjustment(row.adjId, targetCalcId, reason, amount, closeYm,
                 approvedBy);
+    }
+
+    @Override
+    public List<AdjustmentService.Adjustment> findByCloseYm(CloseYm closeYm) {
+        return mapper.findByCloseYm(closeYm.value()).stream()
+                .map(r -> new AdjustmentService.Adjustment(r.adjId, r.targetCalcId, r.reason, Money.won(r.amount),
+                        CloseYm.of(r.closeYm), r.approvedBy))
+                .toList();
     }
 }

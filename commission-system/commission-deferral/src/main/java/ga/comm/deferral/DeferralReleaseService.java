@@ -41,7 +41,7 @@ public class DeferralReleaseService {
 
         for (ScheduleEntry entry : scheduleStore.findDue(ym)) {
             if (!policyStatus.isInforce(entry.policyNo(), ym)) {
-                scheduleStore.replace(entry.held());
+                scheduleStore.replace(entry.held(), DeferralTransitionReason.POLICY_NOT_INFORCE);
                 held++;
                 continue;
             }
@@ -59,7 +59,7 @@ public class DeferralReleaseService {
                     "[{\"step\":\"DEFERRAL_RELEASE_V1\",\"msg\":\"분급 도래 지급\","
                             + "\"values\":{\"sourceCalcId\":\"" + entry.sourceCalcId()
                             + "\",\"dueYm\":\"" + entry.dueYm() + "\"}}]"));
-            scheduleStore.replace(entry.released(record.calcId()));
+            scheduleStore.replace(entry.released(record.calcId()), DeferralTransitionReason.DUE_RELEASED);
             released.add(record);
         }
         return new ReleaseResult(released, held);
@@ -70,7 +70,7 @@ public class DeferralReleaseService {
         int cancelled = 0;
         for (ScheduleEntry entry : scheduleStore.findByPolicyAndAgent(policyNo, agentId)) {
             if (entry.status() == ScheduleStatus.SCHEDULED) {
-                scheduleStore.replace(entry.cancelled());
+                scheduleStore.replace(entry.cancelled(), DeferralTransitionReason.POLICY_TERMINATED);
                 cancelled++;
             }
         }

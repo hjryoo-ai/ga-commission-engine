@@ -41,12 +41,12 @@ import java.util.stream.Collectors;
  * 전부 담는다 — 공유 시드에 기대지 않는다. 규정이 바뀌면 기존 케이스를 고치지 말고 새 케이스 디렉터리를
  * 추가한다(effective-dating 철학). 작성 규약은 {@code golden/README.md} 참조.
  */
-final class GoldenCase {
+public final class GoldenCase {
 
-    final String id;
-    final String title;
-    final String axis;
-    final Set<String> features;   // LIMIT / DEFERRAL / CLAWBACK
+    public final String id;
+    public final String title;
+    public final String axis;
+    public final Set<String> features;   // LIMIT / DEFERRAL / CLAWBACK
     final InsurerCode insurer;
     final ProductKey product;
     final AgentId agent;
@@ -100,7 +100,7 @@ final class GoldenCase {
     record ExpectedSchedule(String dueYm, long amount, String status, String payCondition) {
     }
 
-    static GoldenCase load(Path dir) {
+    public static GoldenCase load(Path dir) {
         Map<String, String> meta = GoldenCsv.readKeyValue(dir.resolve("case.csv"));
         String id = meta.getOrDefault("id", dir.getFileName().toString());
         InsurerCode insurer = new InsurerCode(meta.getOrDefault("insurer", "SAMLIFE"));

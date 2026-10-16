@@ -65,6 +65,10 @@ subprojects {
     tasks.withType<Test>().configureEach {
         useJUnitPlatform()
         systemProperty("file.encoding", "UTF-8")
+        // 전역 검증기 집계(Phase E1 C1): 아웃박스 시험 픽스처의 리스너가 태스크 끝에 쓴다 — CI 산출물 test-reports(test-results/**/*.xml)에 담긴다.
+        val validationFile = layout.buildDirectory.file("test-results/outbox-validation/${name}.xml")
+        outputs.file(validationFile).optional()
+        systemProperty("outbox.validation.file", validationFile.get().asFile.absolutePath)
     }
 }
 

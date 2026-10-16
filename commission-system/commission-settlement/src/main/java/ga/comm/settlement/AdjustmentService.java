@@ -6,6 +6,7 @@ import ga.comm.calc.store.CommCalcStore;
 import ga.comm.domain.money.Money;
 import ga.comm.domain.time.CloseYm;
 
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -21,6 +22,9 @@ public class AdjustmentService {
     public interface AdjustmentStore {
         Adjustment create(Long targetCalcId, String reason, Money amount, CloseYm closeYm,
                           String approvedBy);
+
+        /** 그 월에 귀속된 정정 전부(adj_id 순) — 마감 확정 이벤트의 {@code adjustment} 합(Phase E1 P5). 마감·지급 런은 읽지 않는다(§11). */
+        List<Adjustment> findByCloseYm(CloseYm closeYm);
     }
 
     private final CommCalcStore calcStore;

@@ -17,6 +17,7 @@ import ga.comm.deferral.DeferralScheduleStore;
 import ga.comm.deferral.PolicyStatusProvider;
 import ga.comm.limit.LimitLedgerStore;
 import ga.comm.limit.LimitReversalHook;
+import ga.comm.outbox.publish.PublishingStores;
 import ga.comm.rule.RuleRepository;
 import ga.comm.rule.admin.CommRateAdminStore;
 import ga.comm.rule.admin.RateApprovalService;
@@ -26,6 +27,7 @@ import ga.comm.settlement.CloseHook;
 import ga.comm.settlement.DeferralReleaseCloseHook;
 import ga.comm.settlement.MonthCloseService;
 import ga.comm.settlement.PayoutService;
+import ga.comm.settlement.PayoutStatementStore;
 import ga.comm.settlement.SettleCloseStore;
 import ga.comm.settlement.WithholdingTaxPolicy;
 import ga.comm.app.support.PlaceholderPolicyStatusProvider;
@@ -37,6 +39,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
 
+import java.time.Clock;
 import java.util.List;
 
 /**
@@ -99,19 +102,25 @@ public class ServiceConfig {
         return List.of(new DeferralReleaseCloseHook(releaseService));
     }
 
+    /** 확정 시각은 앱 전역 시계, 확정 뒤 같은 트랜잭션에서 StatementConfirmed 발행(Phase E1). */
     @Bean
     public MonthCloseService monthCloseService(CommCalcStore calcStore, PolicyEventStore eventStore,
                                                LimitLedgerStore ledgerStore, SettleCloseStore closeStore,
-                                               List<CloseHook> closeHooks) {
-        return new MonthCloseService(calcStore, eventStore, ledgerStore, closeStore, closeHooks);
+                                               List<CloseHook> closeHooks, Clock clock,
+                                               PublishingStores publishing) {
+        return new MonthCloseService(calcStore, eventStore, ledgerStore, closeStore, closeHooks, clock,
+                List.of(publishing.statementPublisher()));
     }
 
+    /** 지급명세 정본(PAYOUT_STATEMENT)과 지급 시각, 명세 저장 뒤 같은 항목 트랜잭션에서 PayoutCompleted 발행(Phase E1). */
     @Bean
     public PayoutService payoutService(CommCalcStore calcStore, AgentSettlementStore settlementStore,
-                                       SettleCloseStore closeStore, ClawbackOffsetService offsetService) {
+                                       SettleCloseStore closeStore, ClawbackOffsetService offsetService,
+                                       PayoutStatementStore statementStore, Clock clock,
+                                       PublishingStores publishing) {
         // 원천세는 지급 런별 순지급액 기준 3.3% (§6.3, §11.11 세무 확인 시 정책 교체).
         return new PayoutService(calcStore, settlementStore, closeStore, offsetService,
-                WithholdingTaxPolicy.STANDARD_3_3);
+                WithholdingTaxPolicy.STANDARD_3_3, statementStore, clock, List.of(publishing.payoutPublisher()));
     }
 
     @Bean

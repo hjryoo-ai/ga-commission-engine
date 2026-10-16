@@ -17,6 +17,7 @@ dependencies {
     api(project(":commission-api"))      // 서비스·REST 컨트롤러
     api(project(":commission-batch"))    // 배치 잡 팩토리 + BatchRuntime
     api(project(":commission-shadow"))   // 섀도 런 서비스
+    api(project(":commission-outbox"))   // 발행 데코레이터·리스너 조립(Phase E1)
 
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-security")

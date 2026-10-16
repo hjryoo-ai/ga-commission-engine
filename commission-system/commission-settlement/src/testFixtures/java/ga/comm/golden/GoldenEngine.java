@@ -14,12 +14,15 @@ import ga.comm.calc.step.OverrideCommissionStep;
 import ga.comm.calc.step.PayoutRateStep;
 import ga.comm.calc.store.CloseYmResolver;
 import ga.comm.calc.store.CommCalcRecord;
+import ga.comm.calc.store.CommCalcStore;
+import ga.comm.calc.store.PolicyEventStore;
 import ga.comm.calc.fixture.InMemoryCommCalcStore;
 import ga.comm.clawback.ClawbackPostProcessor;
 import ga.comm.clawback.ClawbackStep;
 import ga.comm.clawback.ReviveStep;
 import ga.comm.deferral.DeferralCancelListener;
 import ga.comm.deferral.DeferralReleaseService;
+import ga.comm.deferral.DeferralScheduleStore;
 import ga.comm.deferral.DeferralSchedulePoster;
 import ga.comm.deferral.DeferralSplitStep;
 import ga.comm.deferral.ScheduleEntry;
@@ -37,6 +40,7 @@ import ga.comm.limit.LimitGateStep;
 import ga.comm.limit.LimitLedger;
 import ga.comm.limit.LimitLedgerPoster;
 import ga.comm.limit.LimitLedgerService;
+import ga.comm.limit.LimitLedgerStore;
 import ga.comm.limit.LimitReversalHook;
 import ga.comm.limit.PremiumRepriceStep;
 import ga.comm.limit.fixture.InMemoryLimitLedgerStore;
@@ -60,26 +64,63 @@ import java.util.Map;
  * 구동한다(룰=데이터 원칙). 예: 2026-06-30 체결은 한도룰(2026-07-01 시행)이 계약일에 없어 원장이
  * 생기지 않는다 — Step 활성일이 아니라 룰 기준일이 경계를 만든다.
  */
-final class GoldenEngine {
+public final class GoldenEngine {
+
+    /**
+     * 저장소 배선 — 엔진은 감싼 저장소로 돌고, 비교기는 원본(인메모리)을 읽는다. 기본은 감싸지 않는다.
+     * 아웃박스 시험(commission-outbox)이 발행 데코레이터를 끼워 같은 케이스를 이벤트로 돌린다(Phase E1 C10).
+     */
+    public interface Wiring {
+        Wiring NONE = new Wiring() {
+        };
+
+        default PolicyEventStore events(PolicyEventStore store) {
+            return store;
+        }
+
+        default CommCalcStore calcs(CommCalcStore store, PolicyEventStore events) {
+            return store;
+        }
+
+        default LimitLedgerStore ledgers(LimitLedgerStore store) {
+            return store;
+        }
+
+        default DeferralScheduleStore schedules(DeferralScheduleStore store) {
+            return store;
+        }
+    }
 
     private final GoldenCase gc;
-    private final InMemoryCommCalcStore calcStore = new InMemoryCommCalcStore();
-    private final InMemoryPolicyEventStore eventStore = new InMemoryPolicyEventStore();
-    private final InMemoryLimitLedgerStore ledgers = new InMemoryLimitLedgerStore();
-    private final InMemoryDeferralScheduleStore schedules = new InMemoryDeferralScheduleStore();
+    private final InMemoryCommCalcStore rawCalcs = new InMemoryCommCalcStore();
+    private final InMemoryPolicyEventStore rawEvents = new InMemoryPolicyEventStore();
+    private final InMemoryLimitLedgerStore rawLedgers = new InMemoryLimitLedgerStore();
+    private final InMemoryDeferralScheduleStore rawSchedules = new InMemoryDeferralScheduleStore();
     private final InMemorySettleCloseStore closeStore = new InMemorySettleCloseStore();
+    private final PolicyEventStore eventStore;
+    private final CommCalcStore calcStore;
+    private final LimitLedgerStore ledgers;
+    private final DeferralScheduleStore schedules;
 
     private CommissionCalculator calculator;
     private DeferralReleaseService releaseService;
     private final Map<String, List<CommCalcRecord>> recordsByRef = new LinkedHashMap<>();
     private final Map<String, PolicyEvent> eventsByRef = new LinkedHashMap<>();
 
-    GoldenEngine(GoldenCase gc) {
+    public GoldenEngine(GoldenCase gc) {
+        this(gc, Wiring.NONE);
+    }
+
+    public GoldenEngine(GoldenCase gc, Wiring wiring) {
         this.gc = gc;
+        this.eventStore = wiring.events(rawEvents);
+        this.calcStore = wiring.calcs(rawCalcs, rawEvents);
+        this.ledgers = wiring.ledgers(rawLedgers);
+        this.schedules = wiring.schedules(rawSchedules);
     }
 
     /** 타임라인을 실행한다. 표현식/파싱 오류는 그대로 던져 케이스 실패로 표면화한다(침묵 스킵 금지). */
-    void run() {
+    public void run() {
         calculator = buildCalculator();
         for (GoldenCase.Step step : gc.timeline) {
             switch (step.type()) {
@@ -232,8 +273,8 @@ final class GoldenEngine {
         return recordsByRef.getOrDefault(ref, List.of());
     }
 
-    List<CommCalcRecord> allRecords() {
-        return calcStore.all();
+    public List<CommCalcRecord> allRecords() {
+        return rawCalcs.all();
     }
 
     boolean hasRef(String ref) {
@@ -241,10 +282,10 @@ final class GoldenEngine {
     }
 
     LimitLedger ledgerFor(PolicyNo policyNo, AgentId agentId) {
-        return ledgers.find(policyNo, agentId).orElse(null);
+        return rawLedgers.find(policyNo, agentId).orElse(null);
     }
 
     List<ScheduleEntry> schedule() {
-        return schedules.all();
+        return rawSchedules.all();
     }
 }

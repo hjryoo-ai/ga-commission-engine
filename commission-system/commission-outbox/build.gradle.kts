@@ -17,6 +17,8 @@ dependencies {
     testFixturesApi("com.fasterxml.jackson.core:jackson-databind")
     testFixturesImplementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml")
     testFixturesApi("com.networknt:json-schema-validator:1.5.9")
+    // 전역 검증기 집계를 시험 태스크 끝에 쓰는 리스너(META-INF/services) — 런처는 시험 런타임에 이미 있다(루트 testRuntimeOnly)
+    testFixturesCompileOnly("org.junit.platform:junit-platform-launcher")
 
     testImplementation(testFixtures(project(":commission-rule")))
     testImplementation(testFixtures(project(":commission-calc")))

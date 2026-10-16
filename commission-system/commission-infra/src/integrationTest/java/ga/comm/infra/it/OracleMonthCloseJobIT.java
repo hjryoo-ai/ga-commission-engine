@@ -56,7 +56,7 @@ class OracleMonthCloseJobIT {
     private Job closeJob() {
         MonthCloseService closeService = new MonthCloseService(persistence.commCalcStore(),
                 persistence.policyEventStore(), persistence.limitLedgerStore(),
-                persistence.settleCloseStore(), List.of());
+                persistence.settleCloseStore(), List.of(), java.time.Clock.system(java.time.ZoneId.of("Asia/Seoul")), List.of());
         return MonthCloseJobFactory.job(OracleBatchSupport.runtime().jobRepository(),
                 persistence.txManager(), closeService, persistence.closeReports());
     }
