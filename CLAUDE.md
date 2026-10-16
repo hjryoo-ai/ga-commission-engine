@@ -27,7 +27,7 @@
 - 감사 대상 사실은 업무 테이블에 정본으로 영속한다(배치 메타테이블 BATCH_*에만 두지 않는다). (B-15)
 - 속성 테스트는 JUnit 5 `@ParameterizedTest` + `commission-domain` 테스트 픽스처 `SeededCases`(시드는 소스 상수, 케이스 이름에 시드·인덱스, 경계값 명시, 기본 1000건). jqwik 금지. (B-17)
 - 계약 테스트(Store 포트 동작 동등성 스위트)는 testFixtures `contract/`에 두고 인메모리 레퍼런스와 Oracle 어댑터가 같은 스위트를 상속한다. (CONTRIBUTING "단일 저장소", 루트 build.gradle.kts)
-- `contracts/`는 `ga-disclosure` 저장소 `contracts/`의 복사본이다(정본은 저쪽). 이 저장소에서 계약을 고치지 않는다. `contracts/UPSTREAM`은 `ga-disclosure` `main`에서 도달 가능한 병합 커밋을 가리키고, 복사 후 `./gradlew contractChecksums`·`verifyUpstreamContract`로 대조한다. (루트 build.gradle.kts 계약 절, E3 수용 심사 §4-6)
+- `contracts/shared/<업스트림>/`은 그 저장소 `contracts/`의 복사본이다 — `ga-disclosure`(등급 API·공유 Envelope 핵심)와 `ga-agent-portal`(포털 이벤트 계약·피드 OpenAPI), 정본은 저쪽. 이 저장소에서 계약을 고치지 않는다. 디렉터리마다 `UPSTREAM`(첫 줄은 그 저장소 `main`에서 도달 가능한 병합 커밋, 다음 줄부터 사본 파일 목록)과 `CHECKSUMS`를 두고, 복사 후 `./gradlew contractChecksums`·`verifyUpstreamContract`로 대조한다. (루트 build.gradle.kts 계약 절, E3 수용 심사 §4-6, E1 D-16)
 - **마이그레이션 번호는 전역 단조**: 공통·Oracle 전용 디렉터리가 한 번호 공간, 새 번호는 전체 최댓값 + 1(디렉터리별 재시작 없음), 번호 재사용 금지, 커밋된 마이그레이션은 고치지 않는다(정정은 새 번호). 빈 번호는 `commission-system/docs/db-migrations.md`의 표뿐이고 `MigrationNumberingTest`가 대조한다. (CONTRIBUTING "DB 마이그레이션")
 - dependency verification은 CI에서도 항상 활성. 의존성 추가/metadata 변경 PR은 재생성 diff 리뷰(의도 외 아티팩트 0)를 체크리스트로 둔다. (CONTRIBUTING "CI")
 

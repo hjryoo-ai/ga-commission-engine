@@ -34,7 +34,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Build (Docker 테스트 제외)
         run: ./gradlew build -x :commission-infra:integrationTest -x :commission-app:test --no-daemon
-      - name: 계약 원본 대조 (contracts/UPSTREAM의 ga-disclosure 커밋과 SHA-256 일치, Phase E3)
+      - name: 계약 원본 대조 (contracts/shared/<업스트림>/UPSTREAM 커밋과 바이트 일치 — ga-disclosure·ga-agent-portal, Phase E3·E1)
         run: ./gradlew verifyUpstreamContract --no-daemon
       - name: net.jqwik 부재 확인 (Phase E3-0 — 해석 시 빌드 실패 규칙의 이중 확인)
         run: |

@@ -1,0 +1,35 @@
+{
+  "eventId": "5eed0000-0000-4000-8000-000000000002",
+  "seq": 2,
+  "type": "CommissionCalculated",
+  "version": 1,
+  "occurredAt": "2026-08-20T10:15:30+09:00",
+  "aggregate": {
+    "kind": "COMM_CALC",
+    "id": "884213"
+  },
+  "payload": {
+    "calcId": "884213",
+    "agentId": "A0001",
+    "policyNo": "PN-2026-000184",
+    "productKey": "LIFE-A",
+    "commType": "FY_COMM",
+    "amount": 2800000,
+    "closeYm": "202608",
+    "limitCutAmt": 0,
+    "basis": {
+      "rate": "9.333333",
+      "payoutRate": "1",
+      "installmentNo": 1,
+      "ruleVersionIds": [
+        "RV-FY-2026-07"
+      ]
+    },
+    "policySummary": {
+      "contractDate": "2026-08-01",
+      "monthlyPremium": 300000,
+      "productName": "허구 종신보험 A",
+      "insuredMasked": "김*수"
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "eventId": "5eed0000-0000-4000-8000-000000000009",
+  "seq": 9,
+  "type": "PayoutCompleted",
+  "version": 1,
+  "occurredAt": "2026-09-10T10:00:00+09:00",
+  "aggregate": {
+    "kind": "PAYOUT",
+    "id": "A0001:202608"
+  },
+  "payload": {
+    "agentId": "A0001",
+    "closeYm": "202608",
+    "paidAt": "2026-09-10T10:00:00+09:00",
+    "paidAmount": 3481200
+  }
+}

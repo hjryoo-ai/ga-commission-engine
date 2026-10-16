@@ -1,0 +1,23 @@
+{
+  "eventId": "5eed0000-0000-4000-8000-000000000001",
+  "seq": 1,
+  "type": "LimitLedgerOpened",
+  "version": 1,
+  "occurredAt": "2026-08-01T09:00:00+09:00",
+  "aggregate": {
+    "kind": "LIMIT_LEDGER",
+    "id": "LG-0001"
+  },
+  "payload": {
+    "ledgerId": "LG-0001",
+    "policyNo": "PN-2026-000184",
+    "agentId": "A0001",
+    "contractDate": "2026-08-01",
+    "fyStart": "2026-08-01",
+    "fyEnd": "2027-07-31",
+    "monthlyPremium": 300000,
+    "limitMultiple": "12",
+    "limitAmount": 3600000,
+    "ruleVersionId": "RV-LIMIT-2026-07"
+  }
+}
