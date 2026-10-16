@@ -35,4 +35,5 @@ dependencies {
     testImplementation(testFixtures(project(":commission-rule")))
     testImplementation(testFixtures(project(":commission-calc")))
     testImplementation(testFixtures(project(":commission-disclosure")))
+    testImplementation(testFixtures(project(":commission-settlement")))   // 골든 조립(E1 Q3 — 운영 조립 일치 시험)
 }

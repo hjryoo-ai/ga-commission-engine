@@ -43,6 +43,11 @@ public class RevisionService {
         this.hooks = List.copyOf(hooks);
     }
 
+    /** 조립된 훅(읽기 전용) — 운영 조립과 골든 조립의 일치 시험(Phase E1 Q3). */
+    public List<ReversalHook> hooks() {
+        return hooks;
+    }
+
     /**
      * 단건 취소분개. 이미 REVERSED면 아무것도 하지 않는다(멱등).
      *

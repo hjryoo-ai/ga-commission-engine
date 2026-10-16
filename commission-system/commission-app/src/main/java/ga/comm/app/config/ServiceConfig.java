@@ -13,6 +13,7 @@ import ga.comm.calc.store.PolicyEventStore;
 import ga.comm.clawback.ClawbackOffsetService;
 import ga.comm.clawback.ClawbackReceivableStore;
 import ga.comm.deferral.DeferralReleaseService;
+import ga.comm.deferral.DeferralReversalHook;
 import ga.comm.deferral.DeferralScheduleStore;
 import ga.comm.deferral.PolicyStatusProvider;
 import ga.comm.limit.LimitLedgerStore;
@@ -123,10 +124,12 @@ public class ServiceConfig {
                 WithholdingTaxPolicy.STANDARD_3_3, statementStore, clock, List.of(publishing.payoutPublisher()));
     }
 
+    /** reversal 훅: 한도 원복 + 원본의 미도래 분급 취소(E1 Q3 — 분급 취소 훅은 E1 이전부터 운영 조립에 빠져 있던 결함). */
     @Bean
     public RevisionService revisionService(CommCalcStore calcStore, CloseStatusProvider closeStatus,
-                                           LimitLedgerStore ledgerStore) {
-        return new RevisionService(calcStore, closeStatus, List.of(new LimitReversalHook(ledgerStore)));
+                                           LimitLedgerStore ledgerStore, DeferralScheduleStore scheduleStore) {
+        return new RevisionService(calcStore, closeStatus,
+                List.of(new LimitReversalHook(ledgerStore), new DeferralReversalHook(scheduleStore)));
     }
 
     @Bean

@@ -22,6 +22,7 @@ import ga.comm.clawback.ClawbackStep;
 import ga.comm.clawback.ReviveStep;
 import ga.comm.deferral.DeferralCancelListener;
 import ga.comm.deferral.DeferralReleaseService;
+import ga.comm.deferral.DeferralReversalHook;
 import ga.comm.deferral.DeferralScheduleStore;
 import ga.comm.deferral.DeferralSchedulePoster;
 import ga.comm.deferral.DeferralSplitStep;
@@ -55,6 +56,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 골든 케이스 실행기 (Phase 14). 케이스의 시드·피처로 <b>실제 파이프라인·서비스</b>를 조립하고
@@ -172,6 +174,30 @@ public final class GoldenEngine {
                 CloseYmResolver.byEventDate(), listeners);
     }
 
+    /** 정정 서비스 — reversal 훅은 운영 조립과 같다(한도 원복 + 분급 피처면 미도래 스케줄 취소, E1 Q3). */
+    private RevisionService revisionService() {
+        List<RevisionService.ReversalHook> hooks = new ArrayList<>();
+        hooks.add(new LimitReversalHook(ledgers));
+        if (gc.features.contains("DEFERRAL")) {
+            hooks.add(new DeferralReversalHook(schedules));
+        }
+        return new RevisionService(calcStore, SettleCloseStore.asProvider(closeStore), hooks);
+    }
+
+    /**
+     * 전 피처(LIMIT·CLAWBACK·DEFERRAL)를 켠 조립의 저장 후 훅·reversal 훅 클래스 — 운영 조립(앱 설정)과의 일치 시험(E1 Q3).
+     * 케이스 실행과 같은 조립 메서드를 지난다.
+     */
+    public static Assembly fullAssembly() {
+        GoldenEngine engine = new GoldenEngine(GoldenCase.assemblyOnly(Set.of("LIMIT", "CLAWBACK", "DEFERRAL")));
+        CommissionCalculator calculator = engine.buildCalculator();
+        return new Assembly(calculator.listeners().stream().<Class<?>>map(Object::getClass).toList(),
+                engine.revisionService().hooks().stream().<Class<?>>map(Object::getClass).toList());
+    }
+
+    public record Assembly(List<Class<?>> listeners, List<Class<?>> reversalHooks) {
+    }
+
     // ---- 타임라인 단계 실행 ----
 
     private void runEvent(GoldenCase.Step s) {
@@ -202,9 +228,7 @@ public final class GoldenEngine {
             throw new IllegalArgumentException(r.where()
                     + ": REBOOK targetRef가 산출 레코드를 가진 EVENT를 가리켜야 합니다: " + r.get("targetRef"));
         }
-        RevisionService revision = new RevisionService(calcStore,
-                SettleCloseStore.asProvider(closeStore),
-                List.of(new LimitReversalHook(ledgers)));
+        RevisionService revision = revisionService();
         RevisionService.RebookResult result =
                 revision.rebookEvent(stored, calculator, r.getOr("note", "골든 정정"));
         if (!s.ref().isEmpty()) {

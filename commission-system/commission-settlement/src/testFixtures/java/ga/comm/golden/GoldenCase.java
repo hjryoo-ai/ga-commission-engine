@@ -80,6 +80,12 @@ public final class GoldenCase {
         this.expectedSchedule = expectedSchedule;
     }
 
+    /** 조립만 보는 빈 케이스(룰·조직·타임라인·기대 없음) — {@link GoldenEngine#fullAssembly()}. */
+    static GoldenCase assemblyOnly(Set<String> features) {
+        return new GoldenCase("ASSEMBLY", "조립 전용", "", Set.copyOf(features), new InsurerCode("NONE"), new ProductKey("NONE"),
+                new AgentId("NONE"), 0, new InMemoryRuleStore(), new InMemoryAgentDirectory(), List.of(), List.of(), List.of(), List.of());
+    }
+
     enum StepType { EVENT, APPROVE_RATE, REBOOK, RELEASE, DEDUCT_CLAWBACK }
 
     /** 타임라인 한 단계 — 실행 순서는 파일 순서다. cells는 step 유형별로 해석한다(README 범례). */
