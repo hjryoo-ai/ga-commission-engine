@@ -35,3 +35,19 @@ tasks.named<ProcessResources>("processTestFixturesResources") {
         into("contracts/shared")
     }
 }
+
+// 이벤트 골든(E1 C10): 골든셋 케이스(commission-settlement 시험 리소스 — 이 소스셋 밖)를 읽으므로 입력으로 선언한다. 스냅샷은 이 모듈의
+// src/test/resources/outbox-golden/ — 갱신은 ./gradlew :commission-outbox:test -PupdateOutboxGolden (검토 뒤 커밋).
+tasks.named<Test>("test") {
+    val goldenCases = rootProject.file("commission-settlement/src/test/resources/golden/cases")
+    val snapshots = file("src/test/resources/outbox-golden")
+    inputs.dir(goldenCases).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("goldenCases")
+    inputs.dir(snapshots).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("outboxGolden")
+    systemProperty("engine.goldenCasesDir", goldenCases.absolutePath)
+    systemProperty("engine.outboxGoldenDir", snapshots.absolutePath)
+    val update = providers.gradleProperty("updateOutboxGolden").isPresent
+    systemProperty("outbox.golden.update", update.toString())
+    if (update) {
+        outputs.upToDateWhen { false }
+    }
+}
