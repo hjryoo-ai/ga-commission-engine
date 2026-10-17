@@ -300,6 +300,10 @@ public final class PortalPayloads {
         p.put("net", e.math().net().toLong());
         p.put("basisSeq", basisSeq);
         p.put("asOf", OutboxPublisher.instant(asOf));
+        // 계약 v1.3 R7(선택) — 지급 런과 같은 정의(PayoutCompleted의 같은 필드)
+        p.put("receivableOffset", e.math().receivableOffset().toLong());
+        p.put("carriedReceivable", e.math().carriedReceivable().toLong());
+        p.put("payable", e.math().payable().toLong());
         return p;
     }
 

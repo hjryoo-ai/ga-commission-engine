@@ -142,7 +142,7 @@ class EstimateEqualsActualGoldenTest {
                             .append(est.path(f).asLong()).append(" | ").append(conf.path(f).asLong()).append(" |\n");
                     assertThat(est.path(f).asLong()).as(k.name() + " " + f).isEqualTo(conf.path(f).asLong());
                 }
-                for (String f : List.of("withholdingTax", "net")) {
+                for (String f : List.of("withholdingTax", "net", "receivableOffset", "carriedReceivable", "payable")) {   // 뒤 셋: v1.3 R7
                     md.append("| ").append(k.name()).append(" | ").append(k.month().value()).append(" | ").append(f).append(" | ")
                             .append(est.path(f).asLong()).append(" | ").append(paid.path(f).asLong()).append(" |\n");
                     assertThat(est.path(f).asLong()).as(k.name() + " " + f).isEqualTo(paid.path(f).asLong());

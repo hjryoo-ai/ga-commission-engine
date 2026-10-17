@@ -122,6 +122,39 @@ public final class PortalContract {
                 .sorted(java.util.Comparator.comparing(PortalContract::fileName)).toList();
     }
 
+    /** 샘플 이벤트 하나 — {@code id}는 파일 상대 경로(JSONL이면 {@code #줄번호}를 붙인다). */
+    public record Sample(String id, JsonNode doc) {
+    }
+
+    /**
+     * 샘플 이벤트 전부 — 파일 이름 순, JSONL(포털 계약 v1.3 {@code a1/a1_portal_150000.jsonl} — 엔진 E2 ⓪a 바이트)은 줄마다 하나. 포털 v1.3 기준
+     * 17건(a1 10 + contract-only 3 + standalone 4), 13종.
+     */
+    public static List<Sample> sampleEvents() {
+        List<Sample> out = new java.util.ArrayList<>();
+        for (String name : sampleNames()) {
+            if (name.endsWith(".jsonl")) {
+                String text = new String(read(PORTAL_COPY + "events/v1/samples/" + name), StandardCharsets.UTF_8);
+                List<String> lines = text.lines().filter(l -> !l.isBlank()).toList();
+                for (int i = 0; i < lines.size(); i++) {
+                    try {
+                        out.add(new Sample(name + "#" + (i + 1), JSON.readTree(lines.get(i))));
+                    } catch (IOException e) {
+                        throw new UncheckedIOException(e);
+                    }
+                }
+            } else {
+                out.add(new Sample(name, portalFile("events/v1/samples/" + name)));
+            }
+        }
+        return out;
+    }
+
+    /** 원문 바이트(포털 사본) — A-1 바이트 대조용. */
+    public static byte[] portalBytes(String path) {
+        return read(PORTAL_COPY + path);
+    }
+
     /** 파일 이름({@code 02-CommissionCalculated.json})의 샘플 상대 경로(어느 디렉터리에 있든). */
     public static String samplePath(String fileName) {
         return sampleNames().stream().filter(n -> fileName(n).equals(fileName)).findFirst()

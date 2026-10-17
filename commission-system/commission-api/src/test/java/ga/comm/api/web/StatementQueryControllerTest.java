@@ -164,4 +164,15 @@ class StatementQueryControllerTest {
             assertThat(problem(path, 400).path("code").asText()).as(path).isEqualTo("INVALID_REQUEST");
         }
     }
+
+    /** 계약 v1.3(R6)이 이 엔드포인트에 적은 응답·코드와 이 컨트롤러가 내는 것이 같다(코드 이름의 정본은 포털 계약). */
+    @Test
+    void 계약의_오류_코드와_같다() {
+        JsonNode responses = PortalContract.portalFile("api/v1/engine-internal.openapi.yaml").path("paths")
+                .path("/internal/v1/agents/{agentId}/statements/{ym}").path("get").path("responses");
+        assertThat(responses.fieldNames()).toIterable().containsExactlyInAnyOrder("200", "400", "404", "422");
+        assertThat(responses.path("400").path("description").asText()).contains("INVALID_REQUEST");
+        assertThat(responses.path("404").path("description").asText()).contains("AGENT_NOT_FOUND").contains("STATEMENT_NOT_CONFIRMED");
+        assertThat(responses.path("422").path("description").asText()).contains("MONTH_CLOSED");
+    }
 }
