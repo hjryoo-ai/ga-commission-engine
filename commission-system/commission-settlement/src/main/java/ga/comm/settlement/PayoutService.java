@@ -106,27 +106,15 @@ public class PayoutService {
         List<Long> calcIds = records.stream().map(CommCalcRecord::calcId).toList();
         long repCalcId = calcIds.get(0);
 
-        Money offset = Money.ZERO;
-        Money carried = Money.ZERO;
-        Money payable = Money.ZERO;
-
-        if (key.type() == RecipientType.AGENT) {
-            if (grossNet.isNegative()) {
-                offsetService.capitalize(new AgentId(key.id()), grossNet, repCalcId);
-                carried = grossNet.abs();
-            } else if (grossNet.isPositive()) {
-                offset = offsetService.consume(new AgentId(key.id()), grossNet, repCalcId);
-                payable = grossNet.minus(offset);
-            }
-        } else {
-            payable = grossNet.max(Money.ZERO);
-            if (grossNet.isNegative()) {
-                carried = grossNet.abs();  // 조직 음수는 이월 관리 (채권화는 사규 확인)
-            }
+        // 금액 산식 = PayoutMath(잠정 명세와 공용 — E2 Q1). 채권화(쓰기)는 여기서
+        if (key.type() == RecipientType.AGENT && grossNet.isNegative()) {
+            offsetService.capitalize(new AgentId(key.id()), grossNet, repCalcId);
         }
+        PayoutMath.Result math = PayoutMath.settle(key.type(), grossNet,
+                available -> offsetService.consume(new AgentId(key.id()), available, repCalcId), taxPolicy);
 
         SettlementRow settlement = new SettlementRow(ym, runSeq, key.type(), key.id(),
-                grossNet, offset, carried, payable, calcIds);
+                grossNet, math.receivableOffset(), math.carriedReceivable(), math.payable(), calcIds);
         settlementStore.saveAll(List.of(settlement));
 
         for (CommCalcRecord record : records) {
@@ -135,9 +123,8 @@ public class PayoutService {
             }
         }
 
-        WithholdingTaxPolicy.Withholding tax = taxPolicy.taxOn(payable);
-        PayoutStatement statement = new PayoutStatement(ym, runSeq, key.type(), key.id(), payable,
-                tax.incomeTax(), tax.localTax(), payable.minus(tax.total()));
+        PayoutStatement statement = new PayoutStatement(ym, runSeq, key.type(), key.id(), math.payable(),
+                math.tax().incomeTax(), math.tax().localTax(), math.net());
         // 지급명세 정본(v1.2.5 — 부록 B-15): 정산 행·PAID 전이와 같은 트랜잭션. 지급 시각은 주입된 시계
         OffsetDateTime paidAt = OffsetDateTime.now(clock).truncatedTo(ChronoUnit.SECONDS);
         statementStore.save(statement, paidAt);

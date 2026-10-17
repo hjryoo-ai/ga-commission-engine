@@ -113,15 +113,23 @@ public class ServiceConfig {
                 List.of(publishing.statementPublisher()));
     }
 
+    /**
+     * 원천세 정책 — 빈 하나(E2 P9). 지급 런({@link PayoutService})과 잠정 명세({@code StatementEstimator})가 <b>같은 인스턴스</b>를 받는다(예상 =
+     * 실제의 전제). 세율은 지급 런별 순지급액 기준 3.3%(§6.3) — 이미 코드 상수이고, 룰 데이터로 옮기는 것은 §11 미결정(E2 밖).
+     */
+    @Bean
+    public WithholdingTaxPolicy withholdingTaxPolicy() {
+        return WithholdingTaxPolicy.STANDARD_3_3;
+    }
+
     /** 지급명세 정본(PAYOUT_STATEMENT)과 지급 시각, 명세 저장 뒤 같은 항목 트랜잭션에서 PayoutCompleted 발행(Phase E1). */
     @Bean
     public PayoutService payoutService(CommCalcStore calcStore, AgentSettlementStore settlementStore,
                                        SettleCloseStore closeStore, ClawbackOffsetService offsetService,
                                        PayoutStatementStore statementStore, Clock clock,
-                                       PublishingStores publishing) {
-        // 원천세는 지급 런별 순지급액 기준 3.3% (§6.3, §11.11 세무 확인 시 정책 교체).
+                                       PublishingStores publishing, WithholdingTaxPolicy withholdingTaxPolicy) {
         return new PayoutService(calcStore, settlementStore, closeStore, offsetService,
-                WithholdingTaxPolicy.STANDARD_3_3, statementStore, clock, List.of(publishing.payoutPublisher()));
+                withholdingTaxPolicy, statementStore, clock, List.of(publishing.payoutPublisher()));
     }
 
     /** reversal 훅: 한도 원복 + 원본의 미도래 분급 취소(E1 Q3 — 분급 취소 훅은 E1 이전부터 운영 조립에 빠져 있던 결함). */

@@ -43,12 +43,20 @@ public final class ClawbackReceivable {
         return receivable;
     }
 
-    /** 가용 지급액에서 상계. 실제 상계된 금액을 반환한다. */
-    public Money offset(Money available) {
+    /**
+     * 가용 지급액 {@code available}에서 이 채권이 상계할 금액 — 상태를 바꾸지 않는다(E2 P2: 잠정 명세의 상계 미리보기와 {@link #offset}이 같은 계산을
+     * 쓴다). 종결(CLOSED·WRITTEN_OFF)이면 0.
+     */
+    public Money offsetAmount(Money available) {
         if (status == ReceivableStatus.CLOSED || status == ReceivableStatus.WRITTEN_OFF) {
             return Money.ZERO;
         }
-        Money applied = remaining.min(available).max(Money.ZERO);
+        return remaining.min(available).max(Money.ZERO);
+    }
+
+    /** 가용 지급액에서 상계. 실제 상계된 금액을 반환한다. */
+    public Money offset(Money available) {
+        Money applied = offsetAmount(available);
         if (applied.isPositive()) {
             remaining = remaining.minus(applied);
             status = remaining.isZero() ? ReceivableStatus.CLOSED : ReceivableStatus.OFFSET;
