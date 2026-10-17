@@ -62,6 +62,47 @@ class PortalA1StreamTest {
         return lines;
     }
 
+    /** 두 번째 판(E2 ⓪, Q8) — 첫 판 + 해약 뒤 그 달(202702) 잠정 명세. */
+    static List<String> secondEdition() {
+        A1Scenario s = A1Scenario.portal150000();
+        SteppingClock clock = clock(s);
+        OutboxEngine e = engine(clock);
+        A1ScenarioRunner.secondEdition(s, A1ScenarioRunner.of(e), clock);
+        List<String> lines = new ArrayList<>();
+        for (JsonNode n : e.eventsAfter(0)) {
+            lines.add(n.toString());
+        }
+        return lines;
+    }
+
+    @Test
+    void 두_번째_판은_파일과_바이트가_같다() {
+        assertSnapshot(A1Scenario.SECOND_EDITION, secondEdition());
+    }
+
+    /** Q8·C9 — 두 번째 판은 첫 판 뒤에 붙인다: 첫 판 파일의 바이트가 두 번째 판 파일의 앞부분 그대로(seq·eventId는 위치값 — P6). 주입 S10. */
+    @Test
+    void 첫_판은_두_번째_판의_앞부분이다() throws IOException {
+        byte[] first = Files.readAllBytes(snapshotDir().resolve(A1Scenario.FIRST_EDITION + ".jsonl"));
+        byte[] second = Files.readAllBytes(snapshotDir().resolve(A1Scenario.SECOND_EDITION + ".jsonl"));
+        assertThat(second.length).isGreaterThan(first.length);
+        assertThat(java.util.Arrays.copyOf(second, first.length)).as("첫 판 = 두 번째 판의 앞부분(바이트)").isEqualTo(first);
+        List<String> tail = secondEdition().subList(firstEdition().size(), secondEdition().size());
+        assertThat(tail).hasSize(1);
+        JsonNode est = parse(tail.getFirst());
+        assertThat(est.path("type").asText()).isEqualTo("StatementEstimated");
+        assertThat(est.path("seq").asLong()).isEqualTo(11);
+        JsonNode p = est.path("payload");
+        assertThat(p.path("closeYm").asText()).isEqualTo("202702");
+        assertThat(p.path("gross").asLong()).isZero();
+        assertThat(p.path("clawbackOffset").asLong()).isEqualTo(-720_000);
+        assertThat(p.path("withholdingTax").asLong()).isZero();
+        assertThat(p.path("net").asLong()).as("지급할 것이 없다(순액 음수 — 지급 런과 같은 산식)").isZero();
+        assertThat(p.path("carriedReceivable").asLong()).as("음수 순액 → 채권 예정").isEqualTo(720_000);
+        assertThat(p.path("basisSeq").asLong()).as("부여 뒤 최대 순번 — 첫 판 10건").isEqualTo(10);
+        assertThat(p.path("asOf").asText()).isEqualTo("2027-02-16T02:10:00+09:00");
+    }
+
     @Test
     void 첫_판은_파일과_바이트가_같다() {
         assertSnapshot(A1Scenario.FIRST_EDITION, firstEdition());
