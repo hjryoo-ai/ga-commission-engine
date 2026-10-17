@@ -12,8 +12,8 @@
     "receivableId": "RC-0001",
     "agentId": "A0001",
     "originCalcId": "901377",
-    "amount": -1200000,
-    "remaining": -350000,
-    "status": "PARTIALLY_OFFSET"
+    "amount": 1200000,
+    "remaining": 350000,
+    "status": "OFFSET"
   }
 }

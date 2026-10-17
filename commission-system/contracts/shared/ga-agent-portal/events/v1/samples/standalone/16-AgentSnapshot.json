@@ -10,11 +10,9 @@
   },
   "payload": {
     "agentId": "A0001",
-    "nameMasked": "허*사",
     "name": "허구설계사",
     "grade": "G3",
     "orgPath": "/HQ1/BR03/TM07",
-    "role": "AGENT",
     "status": "ACTIVE",
     "validFrom": "2026-08-01"
   }

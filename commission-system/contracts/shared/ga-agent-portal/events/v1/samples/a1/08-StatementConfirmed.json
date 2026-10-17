@@ -14,8 +14,6 @@
     "gross": 3600000,
     "clawbackOffset": 0,
     "adjustment": 0,
-    "withholdingTax": 118800,
-    "net": 3481200,
     "closedAt": "2026-09-05T18:00:00+09:00"
   }
 }

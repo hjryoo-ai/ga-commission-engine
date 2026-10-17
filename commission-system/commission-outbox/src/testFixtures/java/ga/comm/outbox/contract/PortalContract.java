@@ -110,13 +110,26 @@ public final class PortalContract {
         }
     }
 
-    /** 포털 샘플 17개(부록 A-1 seq 1~13 + 4) — 파일 이름 순. */
+    /**
+     * 포털 샘플 17개의 {@code events/v1/samples/} 기준 상대 경로 — 포털 계약 v1.2부터 디렉터리를 포함한다({@code a1/}·{@code contract-only/}·
+     * {@code standalone/}). 파일 이름(= seq) 순.
+     */
     public static List<String> sampleNames() {
         String text = new String(read(PORTAL_COPY + "UPSTREAM"), StandardCharsets.UTF_8);
         return text.lines().skip(1).map(String::trim)
                 .filter(l -> l.startsWith("events/v1/samples/"))
                 .map(l -> l.substring("events/v1/samples/".length()))
-                .sorted().toList();
+                .sorted(java.util.Comparator.comparing(PortalContract::fileName)).toList();
+    }
+
+    /** 파일 이름({@code 02-CommissionCalculated.json})의 샘플 상대 경로(어느 디렉터리에 있든). */
+    public static String samplePath(String fileName) {
+        return sampleNames().stream().filter(n -> fileName(n).equals(fileName)).findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("포털 샘플 없음: " + fileName));
+    }
+
+    private static String fileName(String relative) {
+        return relative.substring(relative.lastIndexOf('/') + 1);
     }
 
     private static byte[] read(String resource) {

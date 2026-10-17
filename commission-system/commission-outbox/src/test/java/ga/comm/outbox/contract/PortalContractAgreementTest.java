@@ -45,8 +45,10 @@ class PortalContractAgreementTest {
             Map.entry("ClawbackReceivableUpdated", "CLAWBACK_RECEIVABLE"), Map.entry("PolicyEventObserved", "POLICY"),
             Map.entry("StatementEstimated", "STATEMENT"), Map.entry("StatementConfirmed", "STATEMENT"), Map.entry("PayoutCompleted", "PAYOUT"));
 
+    /** {@code name}은 상대 경로({@code a1/02-….json}) 또는 파일 이름 — 파일 이름이면 디렉터리를 찾는다(계약 v1.2 분리). */
     private static ObjectNode sample(String name) {
-        return (ObjectNode) PortalContract.portalFile("events/v1/samples/" + name).deepCopy();
+        String path = name.contains("/") ? name : PortalContract.samplePath(name);
+        return (ObjectNode) PortalContract.portalFile("events/v1/samples/" + path).deepCopy();
     }
 
     private static JsonNode payloadSchema(String type) {
@@ -233,6 +235,10 @@ class PortalContractAgreementTest {
                 Arguments.argumentSet("L1", "17-LimitLedgerRebased.json", List.<String>of(), List.of("postingSeq")));
     }
 
+    /** 포털 v1.2(M4)가 샘플에서 이미 뺀 필드 — 샘플이 그것 없이 통과하는 것이 곧 선택임의 증명이다(나머지는 빼 보고 본다). */
+    private static final java.util.Set<String> ABSENT_SINCE_V12 = java.util.Set.of("16-AgentSnapshot.json:role",
+            "08-StatementConfirmed.json:withholdingTax", "08-StatementConfirmed.json:net");
+
     @ParameterizedTest
     @MethodSource("optional")
     void fieldsTheEngineDoesNotHaveAreOptional(String file, List<String> objectPath, List<String> fields) {
@@ -242,6 +248,10 @@ class PortalContractAgreementTest {
             target = (ObjectNode) target.path(step);
         }
         for (String f : fields) {
+            if (ABSENT_SINCE_V12.contains(file + ":" + f)) {
+                assertThat(target.has(f)).as("v1.2 sample %s has no %s", file, f).isFalse();
+                continue;
+            }
             assertThat(target.has(f)).isTrue();
             target.remove(f);
         }

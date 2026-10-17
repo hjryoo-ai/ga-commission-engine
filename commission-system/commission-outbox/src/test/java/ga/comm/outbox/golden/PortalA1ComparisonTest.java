@@ -115,7 +115,7 @@ class PortalA1ComparisonTest {
         return switch (type) {
             case "StatementEstimated" -> "없음 | 잠정 명세는 E2(동기 API) 범위 — E1 피드 미발행";
             case "DeferralScheduled" -> "없음 | E1 P1: DEFER_AFTER_FY는 삭감과 같게 동작, 이연 스케줄을 만들지 않는다(엔진 §11)";
-            case "DeferralStatusChanged" -> "없음 | 취소할 LIMIT_DEFER 스케줄이 없다(P1). 사유 어휘도 다르다(샘플 POLICY_CANCELLED, 엔진 POLICY_TERMINATED)";
+            case "DeferralStatusChanged" -> "없음 | 취소할 LIMIT_DEFER 스케줄이 없다(P1). (사유 어휘는 포털 v1.2부터 엔진 것 — POLICY_TERMINATED)";
             default -> {
                 long nth = sampleOrdinal(sample);
                 List<JsonNode> sameType = engine.stream().filter(n -> n.path("type").asText().equals(type)).toList();
@@ -140,7 +140,7 @@ class PortalA1ComparisonTest {
     private static String reason(String type) {
         return switch (type) {
             case "CommissionCalculated", "LimitLedgerPosted" -> "엔진 시드 FY 7.0×지급률 0.9 = 1,890,000(샘플 2,800,000), 합이 한도 미만이라 시책 삭감 없음; 환수는 엔진 환수율표(7~12회차 40%)";
-            case "StatementConfirmed" -> "샘플은 v1.1 이전 모양(세액·순액 포함) — 엔진은 마감 시점에 참인 것만(K4), 금액은 위 계산 차이";
+            case "StatementConfirmed" -> "샘플·엔진 모두 마감 시점에 참인 것만(K4 — 포털 v1.2 M4가 샘플의 세액·순액을 뺐다), 금액은 위 계산 차이";
             case "PayoutCompleted" -> "엔진은 확장 필드(runSeq·gross·…·net)를 더 싣는다(계약 선택 필드), 금액은 위 계산 차이";
             default -> "같은 사실";
         };

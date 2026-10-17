@@ -30,8 +30,13 @@
       ]
     },
     "reason": {
-      "type": "string",
-      "minLength": 1
+      "description": "엔진 어휘(v1.2 — 닫힌 열거, 정본은 엔진 `DeferralTransitionReason`): DUE_RELEASED 도래 지급, POLICY_NOT_INFORCE 유지 조건 미충족 보류, POLICY_TERMINATED 해약·실효·철회로 잔여 소멸, SOURCE_REVERSED 원본 계산의 취소분개로 소멸",
+      "enum": [
+        "DUE_RELEASED",
+        "POLICY_NOT_INFORCE",
+        "POLICY_TERMINATED",
+        "SOURCE_REVERSED"
+      ]
     }
   }
 }

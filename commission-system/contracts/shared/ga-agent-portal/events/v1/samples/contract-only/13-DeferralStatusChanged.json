@@ -12,6 +12,6 @@
     "scheduleId": "DS-0001",
     "from": "SCHEDULED",
     "to": "CANCELLED",
-    "reason": "POLICY_CANCELLED"
+    "reason": "POLICY_TERMINATED"
   }
 }
