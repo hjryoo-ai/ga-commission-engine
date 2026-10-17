@@ -20,4 +20,6 @@ dependencies {
     testImplementation(testFixtures(project(":commission-deferral")))
     testImplementation(testFixtures(project(":commission-disclosure")))
     testImplementation(testFixtures(project(":commission-outbox")))   // 피드 응답을 포털 FeedResponse 사본으로 검증(E1 C7)
+    testImplementation(testFixtures(project(":commission-clawback")))  // 명세 조회 시험의 인메모리 엔진(E2 ③)
+    testImplementation(testFixtures(project(":commission-settlement")))
 }

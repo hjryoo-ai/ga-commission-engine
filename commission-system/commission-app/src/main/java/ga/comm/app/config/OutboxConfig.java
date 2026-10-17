@@ -103,4 +103,16 @@ public class OutboxConfig {
         return StatementEstimateJobFactory.job(jobRepository, new StatementEstimateJobFactory.Wiring(itemTx, readOnly, sequencer, outboxStore,
                 estimator, estimatePublisher, closeStatus, clock));
     }
+
+    /** 명세 조회(E2 ③) — 읽기 전용 트랜잭션 하나에서 산출기(ESTIMATE) 또는 업무 표 + 발행 빌더(CONFIRMED, Q4). 발행하지 않는다. */
+    @Bean
+    public ga.comm.outbox.feed.StatementQuery statementQuery(StatementEstimator estimator, CommCalcStore calcStore,
+                                                            AdjustmentService.AdjustmentStore adjustmentStore, SettleCloseStore settleCloseStore,
+                                                            ga.comm.settlement.PayoutStatementStore payoutStatementStore, OraclePersistence p,
+                                                            OutboxStore outboxStore, WithholdingTaxPolicy withholdingTaxPolicy, Clock clock) {
+        TransactionTemplate readOnly = new TransactionTemplate(p.txManager());
+        readOnly.setReadOnly(true);
+        return new ga.comm.outbox.feed.StatementQuery(estimator, calcStore, adjustmentStore, settleCloseStore, payoutStatementStore,
+                p.agentMasterReader(), outboxStore, tx(readOnly), withholdingTaxPolicy, clock);
+    }
 }
