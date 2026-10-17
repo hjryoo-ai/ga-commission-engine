@@ -17,6 +17,7 @@ dependencies {
     api(project(":commission-api"))      // 서비스·REST 컨트롤러
     api(project(":commission-batch"))    // 배치 잡 팩토리 + BatchRuntime
     api(project(":commission-shadow"))   // 섀도 런 서비스
+    api(project(":commission-outbox"))   // 발행 데코레이터·리스너 조립(Phase E1)
 
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-security")
@@ -34,4 +35,6 @@ dependencies {
     testImplementation(testFixtures(project(":commission-rule")))
     testImplementation(testFixtures(project(":commission-calc")))
     testImplementation(testFixtures(project(":commission-disclosure")))
+    testImplementation(testFixtures(project(":commission-settlement")))   // 골든 조립(E1 Q3 — 운영 조립 일치 시험)
+    testImplementation(testFixtures(project(":commission-outbox")))       // 피드 응답을 포털 FeedResponse 사본으로 검증(E1 C7)
 }

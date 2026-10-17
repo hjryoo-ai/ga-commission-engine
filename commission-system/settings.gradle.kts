@@ -11,6 +11,7 @@ include(
     "commission-recon",
     "commission-shadow",
     "commission-settlement",
+    "commission-outbox",
     "commission-batch",
     "commission-disclosure",
     "commission-api",

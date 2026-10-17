@@ -5,6 +5,7 @@ import ga.comm.domain.time.CloseYm;
 import ga.comm.settlement.AdjustmentService;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -43,5 +44,24 @@ public abstract class AdjustmentStoreContract {
 
         assertThat(created.adjId()).isPositive();
         assertThat(created.targetCalcId()).isNull();
+    }
+
+    @Test
+    void 귀속월로_정정을_adj_id_순으로_읽는다() {
+        long target = aCalcId();
+        AdjustmentService.Adjustment a = inTx(() ->
+                store().create(target, "정정 1", Money.won(-1_000), CloseYm.of("202611"), "정산팀장"));
+        AdjustmentService.Adjustment b = inTx(() ->
+                store().create(target, "정정 2", Money.won(2_500), CloseYm.of("202611"), "정산팀장"));
+        inTx(() -> store().create(target, "다른 달", Money.won(7_000), CloseYm.of("202612"), "정산팀장"));
+
+        List<AdjustmentService.Adjustment> found = inTx(() -> store().findByCloseYm(CloseYm.of("202611")));
+
+        assertThat(found).extracting(AdjustmentService.Adjustment::adjId).containsExactly(a.adjId(), b.adjId());
+        assertThat(found).extracting(AdjustmentService.Adjustment::amount)
+                .containsExactly(Money.won(-1_000), Money.won(2_500));
+        assertThat(found.get(0).targetCalcId()).isEqualTo(target);
+        assertThat(found.get(0).reason()).isEqualTo("정정 1");
+        assertThat(found.get(0).approvedBy()).isEqualTo("정산팀장");
     }
 }

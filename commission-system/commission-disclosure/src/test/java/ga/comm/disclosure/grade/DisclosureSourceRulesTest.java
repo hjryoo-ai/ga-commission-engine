@@ -30,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class DisclosureSourceRulesTest {
 
-    private static final Path ROOT = Path.of(System.getProperty("engine.contractsDir")).getParent();
+    private static final Path ROOT = Path.of(System.getProperty("engine.rootDir"));
     private static final List<String> MODULES = List.of("commission-disclosure", "commission-api", "commission-infra", "commission-app");
     private static final Pattern STRING_LITERAL = Pattern.compile("\"((?:[^\"\\\\]|\\\\.)*)\"");
 

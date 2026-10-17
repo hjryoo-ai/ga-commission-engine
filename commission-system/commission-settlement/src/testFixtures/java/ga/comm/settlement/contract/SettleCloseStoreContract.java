@@ -93,4 +93,21 @@ public abstract class SettleCloseStoreContract {
         assertThat(inTx(() -> store().stateOf(CloseYm.of("202611"))))
                 .isEqualTo(SettleCloseStore.CloseState.OPEN);
     }
+
+    /** v1.2.5(E1 Q5): 확정 시각은 CLOSED 전이에서만 쓰이고(호출자의 시계), CLOSING·OPEN 전이는 건드리지 않는다. */
+    @Test
+    void 확정_시각은_CLOSED_전이에서만_기록된다() {
+        CloseYm ym = CloseYm.of("202707");
+        java.time.LocalDateTime at = java.time.LocalDateTime.of(2027, 8, 5, 18, 0, 0);
+        inTx(() -> {
+            store().transition(ym, SettleCloseStore.CloseState.CLOSING, "정산담당");
+            return null;
+        });
+        assertThat(inTx(() -> store().closedAtOf(ym))).isEmpty();
+        inTx(() -> {
+            store().transition(ym, SettleCloseStore.CloseState.CLOSED, "정산담당", null, at);
+            return null;
+        });
+        assertThat(inTx(() -> store().closedAtOf(ym))).contains(at);
+    }
 }

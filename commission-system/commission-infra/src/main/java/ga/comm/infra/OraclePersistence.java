@@ -94,6 +94,9 @@ public final class OraclePersistence {
         configuration.addMapper(AgentDirectoryMapper.class);
         configuration.addMapper(CloseReportMapper.class);
         configuration.addMapper(ga.comm.infra.mapper.DisclosureGradeMapper.class);
+        configuration.addMapper(ga.comm.infra.mapper.OutboxMapper.class);
+        configuration.addMapper(ga.comm.infra.mapper.PayoutStatementMapper.class);
+        configuration.addMapper(ga.comm.infra.mapper.AgentMasterMapper.class);
 
         SqlSessionFactory factory = new SqlSessionFactoryBuilder().build(configuration);
         this.session = new SqlSessionTemplate(factory);
@@ -197,6 +200,21 @@ public final class OraclePersistence {
     public ga.comm.disclosure.grade.snapshot.GradeSnapshotStore gradeSnapshotStore() {
         return new ga.comm.infra.store.OracleGradeSnapshotStore(
                 session.getMapper(ga.comm.infra.mapper.DisclosureGradeMapper.class));
+    }
+
+    // ---- 아웃박스·지급명세 (Phase E1) ----
+
+    public ga.comm.outbox.OutboxStore outboxStore() {
+        return new ga.comm.infra.store.OracleOutboxStore(session.getMapper(ga.comm.infra.mapper.OutboxMapper.class));
+    }
+
+    public ga.comm.outbox.feed.AgentMasterReader agentMasterReader() {
+        return new ga.comm.infra.store.OracleAgentMasterReader(session.getMapper(ga.comm.infra.mapper.AgentMasterMapper.class));
+    }
+
+    public ga.comm.settlement.PayoutStatementStore payoutStatementStore() {
+        return new ga.comm.infra.store.OraclePayoutStatementStore(
+                session.getMapper(ga.comm.infra.mapper.PayoutStatementMapper.class));
     }
 
     /** 마감 리포트 3종 (§7 Phase 11) — 룰 완결성 / MAXVALUE 파티션 적재 / 승인 경합 감지. */

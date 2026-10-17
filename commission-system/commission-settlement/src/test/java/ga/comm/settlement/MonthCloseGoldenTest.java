@@ -75,9 +75,10 @@ class MonthCloseGoldenTest {
 
         ClawbackOffsetService offsetService = new ClawbackOffsetService(receivables);
         closeService = new MonthCloseService(harness.calcStore, harness.eventStore, ledgers,
-                closeStore, List.of());
+                closeStore, List.of(), java.time.Clock.fixed(java.time.Instant.parse("2026-09-05T09:00:00Z"), java.time.ZoneId.of("Asia/Seoul")), List.of());
         payoutService = new PayoutService(harness.calcStore, settlementStore, closeStore,
-                offsetService, WithholdingTaxPolicy.STANDARD_3_3);
+                offsetService, WithholdingTaxPolicy.STANDARD_3_3,
+                new ga.comm.settlement.fixture.InMemoryPayoutStatementStore(), java.time.Clock.fixed(java.time.Instant.parse("2026-09-05T09:00:00Z"), java.time.ZoneId.of("Asia/Seoul")), List.of());
     }
 
     private SettlementRow agentRow(PayoutService.RunResult run) {

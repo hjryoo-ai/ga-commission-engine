@@ -21,7 +21,7 @@ public class DeferralReversalHook implements RevisionService.ReversalHook {
     public void onReversal(CommCalcRecord original, CommCalcRecord reversal) {
         for (ScheduleEntry entry : scheduleStore.findBySourceCalcId(original.calcId())) {
             if (entry.status() == ScheduleStatus.SCHEDULED) {
-                scheduleStore.replace(entry.cancelled());
+                scheduleStore.replace(entry.cancelled(), DeferralTransitionReason.SOURCE_REVERSED);
             }
         }
     }

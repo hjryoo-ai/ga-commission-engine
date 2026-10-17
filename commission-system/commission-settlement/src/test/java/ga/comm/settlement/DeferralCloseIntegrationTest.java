@@ -42,10 +42,11 @@ class DeferralCloseIntegrationTest {
         var settlementStore = new ga.comm.settlement.fixture.InMemoryAgentSettlementStore();
         MonthCloseService closeService = new MonthCloseService(
                 harness.calcStore, harness.eventStore, new InMemoryLimitLedgerStore(),
-                closeStore, List.of(new DeferralReleaseCloseHook(releaseService)));
+                closeStore, List.of(new DeferralReleaseCloseHook(releaseService)), java.time.Clock.fixed(java.time.Instant.parse("2026-09-05T09:00:00Z"), java.time.ZoneId.of("Asia/Seoul")), List.of());
         PayoutService payoutService = new PayoutService(harness.calcStore, settlementStore,
                 closeStore, new ClawbackOffsetService(new InMemoryClawbackReceivableStore()),
-                WithholdingTaxPolicy.STANDARD_3_3);
+                WithholdingTaxPolicy.STANDARD_3_3, new ga.comm.settlement.fixture.InMemoryPayoutStatementStore(),
+                java.time.Clock.fixed(java.time.Instant.parse("2026-09-05T09:00:00Z"), java.time.ZoneId.of("Asia/Seoul")), List.of());
 
         // 2027-06 체결 → 12개월 후(202806) 378,000 도래
         harness.calculator().process(EventFixtures.newContract(new PolicyNo("POL-2027-CLOSE"),

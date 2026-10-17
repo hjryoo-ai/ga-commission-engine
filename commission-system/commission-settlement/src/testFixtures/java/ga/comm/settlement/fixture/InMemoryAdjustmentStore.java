@@ -24,6 +24,11 @@ public class InMemoryAdjustmentStore implements AdjustmentService.AdjustmentStor
         return adjustment;
     }
 
+    @Override
+    public synchronized List<AdjustmentService.Adjustment> findByCloseYm(CloseYm closeYm) {
+        return adjustments.stream().filter(a -> a.closeYm().equals(closeYm)).toList();
+    }
+
     public synchronized List<AdjustmentService.Adjustment> all() {
         return List.copyOf(adjustments);
     }

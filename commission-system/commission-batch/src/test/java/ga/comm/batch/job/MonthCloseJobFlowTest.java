@@ -32,7 +32,7 @@ class MonthCloseJobFlowTest {
 
     private Job closeJob(List<CloseReport> reports) {
         MonthCloseService closeService = new MonthCloseService(harness.calcStore,
-                harness.eventStore, new InMemoryLimitLedgerStore(), closeStore, List.of());
+                harness.eventStore, new InMemoryLimitLedgerStore(), closeStore, List.of(), java.time.Clock.fixed(java.time.Instant.parse("2026-09-05T09:00:00Z"), java.time.ZoneId.of("Asia/Seoul")), List.of());
         return MonthCloseJobFactory.job(env.runtime().jobRepository(),
                 new ResourcelessTransactionManager(), closeService, reports);
     }

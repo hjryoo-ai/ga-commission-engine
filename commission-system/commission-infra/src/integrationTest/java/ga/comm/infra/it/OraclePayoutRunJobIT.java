@@ -71,7 +71,8 @@ class OraclePayoutRunJobIT {
         return MonthCloseJobFactory.job(OracleBatchSupport.runtime().jobRepository(),
                 persistence.txManager(),
                 new MonthCloseService(persistence.commCalcStore(), persistence.policyEventStore(),
-                        persistence.limitLedgerStore(), persistence.settleCloseStore(), List.of()),
+                        persistence.limitLedgerStore(), persistence.settleCloseStore(), List.of(),
+                        java.time.Clock.system(java.time.ZoneId.of("Asia/Seoul")), List.of()),
                 List.of());
     }
 
@@ -79,7 +80,8 @@ class OraclePayoutRunJobIT {
         PayoutService payoutService = new PayoutService(persistence.commCalcStore(),
                 settlementStore, persistence.settleCloseStore(),
                 new ClawbackOffsetService(persistence.clawbackReceivableStore()),
-                WithholdingTaxPolicy.STANDARD_3_3);
+                WithholdingTaxPolicy.STANDARD_3_3, persistence.payoutStatementStore(),
+                java.time.Clock.system(java.time.ZoneId.of("Asia/Seoul")), List.of());
         return PayoutRunJobFactory.job(OracleBatchSupport.runtime().jobRepository(),
                 persistence.txTemplate(), payoutService);
     }

@@ -1,0 +1,269 @@
+openapi: 3.1.0
+info:
+  title: ga-commission-engine 내부 API — 포털이 쓰는 것 (v1 골격)
+  version: 1.1.0
+  description: |
+    엔진(테넌트별 인스턴스)이 포털에 제공하는 내부 API(설계서 §4.1·§4.3). 포털 Phase 0의 골격이며 구현은 엔진 E1(피드)·E2(동기 API·명세)에서 한다.
+    인증은 서비스 토큰(운영 mTLS 권장) — 설계사 토큰으로는 접근할 수 없다.
+    금액은 정수 원(integer), 요율·배수 같은 소수는 불투명 문자열(표시 전용), 날짜·시각은 pattern(format을 쓰지 않는다).
+    피드 커서는 정수 afterSeq·nextSeq·headSeq 규약이다(ga-disclosure 6A 계획 승인 Q5로 재확인).
+    1.1.0(포털 Phase 1 지시문 §0 K8): FeedResponse에 필수 tenantId, 401·422(AFTER_BEYOND_HEAD) 응답, limit 기본 200. 피드는 엔진 E1이 구현한다.
+servers:
+  - url: https://engine.invalid
+security:
+  - serviceToken: []
+paths:
+  /internal/v1/events:
+    get:
+      operationId: listEvents
+      summary: 아웃박스 이벤트 피드(pull, 커서) — seq 오름차순, 갭 없음
+      parameters:
+        - name: afterSeq
+          in: query
+          required: true
+          description: 이 seq 다음부터. 처음은 0.
+          schema:
+            type: integer
+            minimum: 0
+        - name: limit
+          in: query
+          required: false
+          description: 한 번에 돌려줄 최대 건수. 없으면 200.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 200
+      responses:
+        '200':
+          description: 이벤트 묶음. headSeq − nextSeq가 포털의 지연 지표.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedResponse'
+        '401':
+          description: 서비스 토큰이 없거나 틀렸다.
+        '422':
+          description: |
+            afterSeq > headSeq — code AFTER_BEYOND_HEAD. 복원된 DB 등 다른 발행자를 읽고 있다는 뜻이다(ga-disclosure 피드와 같은 규약).
+            포털은 그 테넌트를 정지한다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+  /internal/v1/simulations/new-contract:
+    post:
+      operationId: simulateNewContract
+      summary: 신계약 시뮬레이션(dry-run — 영속화·원장 락 없음, 설계서 Q5)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewContractRequest'
+      responses:
+        '200':
+          description: 엔진 결과(비확정·설계사 참고용)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NewContractResult'
+  /internal/v1/simulations/policy-event:
+    post:
+      operationId: simulatePolicyEvent
+      summary: 해약 등 계약 이벤트 영향 시뮬레이션(dry-run, 설계서 Q4)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PolicyEventRequest'
+      responses:
+        '200':
+          description: 엔진 결과(비확정·설계사 참고용)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyEventResult'
+  /internal/v1/agents/{agentId}/statements/{ym}:
+    get:
+      operationId: getStatement
+      summary: 설계사 월 명세(대사·온디맨드 잠정 명세) — StatementEstimated/Confirmed payload와 같은 구조
+      parameters:
+        - name: agentId
+          in: path
+          required: true
+          schema:
+            $ref: '../../events/v1/defs.schema.json#/$defs/agentId'
+        - name: ym
+          in: path
+          required: true
+          schema:
+            $ref: '../../events/v1/defs.schema.json#/$defs/ym'
+        - name: mode
+          in: query
+          required: true
+          schema:
+            enum: [ESTIMATE, CONFIRMED]
+      responses:
+        '200':
+          description: 명세
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '../../events/v1/payloads/StatementEstimated.v1.schema.json'
+                  - $ref: '../../events/v1/payloads/StatementConfirmed.v1.schema.json'
+components:
+  securitySchemes:
+    serviceToken:
+      type: http
+      scheme: bearer
+  schemas:
+    FeedResponse:
+      type: object
+      required: [tenantId, events, nextSeq, headSeq, schemaVersion]
+      properties:
+        tenantId:
+          $ref: '../../events/v1/defs.schema.json#/$defs/tenantId'
+          description: 응답한 엔진 인스턴스의 테넌트(엔진은 테넌트별 인스턴스). 포털은 요청한 테넌트와 다르면 아무것도 적용하지 않고 그 테넌트를 정지한다(v1.1).
+        events:
+          type: array
+          items:
+            $ref: '../../events/v1/envelope.schema.json'
+        nextSeq:
+          type: integer
+          minimum: 0
+          description: 다음 요청의 afterSeq
+        headSeq:
+          type: integer
+          minimum: 0
+        schemaVersion:
+          type: integer
+          minimum: 1
+    Problem:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          pattern: '^[A-Z][A-Z0-9_]*$'
+          description: 오류 코드(예 AFTER_BEYOND_HEAD)
+        message:
+          type: string
+    NewContractRequest:
+      type: object
+      required: [agentId, productKey, monthlyPremium, contractDate]
+      properties:
+        agentId:
+          $ref: '../../events/v1/defs.schema.json#/$defs/agentId'
+        productKey:
+          $ref: '../../events/v1/defs.schema.json#/$defs/id'
+        monthlyPremium:
+          $ref: '../../events/v1/defs.schema.json#/$defs/nonNegativeWon'
+        contractDate:
+          $ref: '../../events/v1/defs.schema.json#/$defs/date'
+        paymentTermMonths:
+          type: integer
+          minimum: 1
+        incentiveCodes:
+          type: array
+          items:
+            type: string
+            minLength: 1
+    NewContractResult:
+      type: object
+      required: [limitAmount, fyCommissionByInstallment, incentives, projectedAccum, deferral, ruleSnapshotId, generatedAt]
+      properties:
+        limitAmount:
+          $ref: '../../events/v1/defs.schema.json#/$defs/nonNegativeWon'
+        fyCommissionByInstallment:
+          type: array
+          items:
+            type: object
+            required: [no, amount]
+            properties:
+              no:
+                type: integer
+                minimum: 1
+              amount:
+                $ref: '../../events/v1/defs.schema.json#/$defs/won'
+        incentives:
+          type: array
+          items:
+            type: object
+            required: [code, amount, limitIncluded]
+            properties:
+              code:
+                type: string
+                minLength: 1
+              amount:
+                $ref: '../../events/v1/defs.schema.json#/$defs/won'
+              limitIncluded:
+                type: boolean
+        projectedAccum:
+          $ref: '../../events/v1/defs.schema.json#/$defs/won'
+        deferral:
+          type: object
+          required: [firstYearPayout, schedule]
+          properties:
+            firstYearPayout:
+              $ref: '../../events/v1/defs.schema.json#/$defs/won'
+            schedule:
+              type: array
+              items:
+                type: object
+                required: [dueYm, amount]
+                properties:
+                  dueYm:
+                    $ref: '../../events/v1/defs.schema.json#/$defs/ym'
+                  amount:
+                    $ref: '../../events/v1/defs.schema.json#/$defs/won'
+        ruleSnapshotId:
+          $ref: '../../events/v1/defs.schema.json#/$defs/id'
+        generatedAt:
+          $ref: '../../events/v1/defs.schema.json#/$defs/instant'
+    PolicyEventRequest:
+      type: object
+      required: [agentId, policyNo, eventType, asOfDate]
+      properties:
+        agentId:
+          $ref: '../../events/v1/defs.schema.json#/$defs/agentId'
+        policyNo:
+          $ref: '../../events/v1/defs.schema.json#/$defs/id'
+        eventType:
+          enum: [CANCEL, LAPSE, WITHDRAW, REDUCE, REINSTATE, PAYMENT_OVERDUE]
+        asOfDate:
+          $ref: '../../events/v1/defs.schema.json#/$defs/date'
+    PolicyEventResult:
+      type: object
+      required: [clawbackAmount, offsetAgainstMonth, receivableRemaining, cancelledDeferrals, ruleSnapshotId]
+      properties:
+        clawbackAmount:
+          $ref: '../../events/v1/defs.schema.json#/$defs/won'
+        offsetAgainstMonth:
+          type: object
+          required: [closeYm, before, after]
+          properties:
+            closeYm:
+              $ref: '../../events/v1/defs.schema.json#/$defs/ym'
+            before:
+              $ref: '../../events/v1/defs.schema.json#/$defs/won'
+            after:
+              $ref: '../../events/v1/defs.schema.json#/$defs/won'
+        receivableRemaining:
+          $ref: '../../events/v1/defs.schema.json#/$defs/won'
+        cancelledDeferrals:
+          type: array
+          items:
+            type: object
+            required: [scheduleId, dueYm, amount]
+            properties:
+              scheduleId:
+                $ref: '../../events/v1/defs.schema.json#/$defs/id'
+              dueYm:
+                $ref: '../../events/v1/defs.schema.json#/$defs/ym'
+              amount:
+                $ref: '../../events/v1/defs.schema.json#/$defs/won'
+        ruleSnapshotId:
+          $ref: '../../events/v1/defs.schema.json#/$defs/id'

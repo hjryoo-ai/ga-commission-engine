@@ -87,6 +87,9 @@ class BootSmokeIT {
     @Autowired
     @Qualifier("monthCloseJob")
     Job monthCloseJob;
+    @Autowired
+    @Qualifier("outboxAgentSnapshotJob")
+    Job outboxAgentSnapshotJob;
 
     @Test
     void 기동_스모크_E2E() throws Exception {
@@ -178,6 +181,77 @@ class BootSmokeIT {
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
         assertThat(refetched).isEqualTo(issued.getResponse().getContentAsByteArray());
         mvc.perform(get(url + "/{id}", snapshotId)).andExpect(status().isUnauthorized());
+    }
+
+    /**
+     * Phase E1 C7: 풀 컨텍스트(실 Oracle·실 보안 체인)에서 이벤트 피드. 앞 시험(메서드 이름 순)의 계산·마감이 낸 이벤트가 lazy 부여로 빈틈 없는
+     * 순번을 받아 나오고, 응답은 포털 계약 사본의 FeedResponse를 통과한다. 토큰 없음 401, 헤드 너머 422, AgentSnapshot 부트스트랩 잡.
+     */
+    @Test
+    void 이벤트_피드_E2E() throws Exception {
+        String url = "/internal/v1/events";
+        String bearer = "Bearer " + SERVICE_TOKEN;
+        mvc.perform(get(url).param("afterSeq", "0")).andExpect(status().isUnauthorized());
+        mvc.perform(get(url).param("afterSeq", "0").header("Authorization", "Bearer wrong")).andExpect(status().isUnauthorized());
+        mvc.perform(get(url).param("afterSeq", "0").header("Authorization", "Basic " + java.util.Base64.getEncoder()
+                .encodeToString("admin:admin".getBytes(java.nio.charset.StandardCharsets.UTF_8)))).andExpect(status().isUnauthorized());
+
+        com.fasterxml.jackson.databind.JsonNode first = feed(get(url).param("afterSeq", "0").param("limit", "1000")
+                .header("Authorization", bearer));
+        assertThat(first.path("tenantId").asText()).isEqualTo("T1");
+        java.util.List<Long> seqs = new java.util.ArrayList<>();
+        java.util.Set<String> types = new java.util.TreeSet<>();
+        first.path("events").forEach(e -> {
+            seqs.add(e.path("seq").asLong());
+            types.add(e.path("type").asText());
+        });
+        assertThat(seqs).isNotEmpty();
+        assertThat(seqs).isEqualTo(java.util.stream.LongStream.rangeClosed(1, seqs.size()).boxed().toList());   // 갭 0
+        assertThat(types).contains("CommissionCalculated", "LimitLedgerOpened", "LimitLedgerPosted", "StatementConfirmed");
+        long head = first.path("headSeq").asLong();
+        assertThat(first.path("nextSeq").asLong()).isEqualTo(head);
+
+        mvc.perform(get(url).param("afterSeq", Long.toString(head + 1)).header("Authorization", bearer))
+                .andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.code").value("AFTER_BEYOND_HEAD"));
+        mvc.perform(get(url).header("Authorization", bearer))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+
+        // AgentSnapshot 부트스트랩 잡(배치 기동 경로와 같은 잡 빈)
+        BatchRequestRunner.Outcome snapshot = batchRequestRunner.submit(outboxAgentSnapshotJob, new JobParametersBuilder()
+                .addString("as_of", "2026-09-01").addString("request_id", "BOOT-1").toJobParameters());
+        assertThat(snapshot.disposition()).isEqualTo(BatchRequestRunner.Disposition.COMPLETED);
+        com.fasterxml.jackson.databind.JsonNode next = feed(get(url).param("afterSeq", Long.toString(head))
+                .header("Authorization", bearer));
+        assertThat(next.path("events")).hasSize(1);
+        com.fasterxml.jackson.databind.JsonNode agent = next.path("events").get(0);
+        assertThat(agent.path("seq").asLong()).isEqualTo(head + 1);
+        assertThat(agent.path("type").asText()).isEqualTo("AgentSnapshot");
+        assertThat(agent.path("payload").path("orgPath").asText()).isEqualTo("/H1/B1/T1");
+
+        // C8 이벤트 쪽 마감 불변식(P11): 8월은 첫 시험에서 마감됐다 — 8월 날짜로 늦게 들어온 신계약은 운영 리졸버가 9월로 보낸다
+        persistence.inTx(() -> calculator.process(EventFixtures.newContract(new ga.comm.domain.id.PolicyNo("POL-2026-0009"),
+                java.time.LocalDate.of(2026, 8, 20), ga.comm.domain.money.Money.won(300_000), java.util.Map.of())));
+        com.fasterxml.jackson.databind.JsonNode late = feed(get(url).param("afterSeq", Long.toString(head + 1))
+                .header("Authorization", bearer));
+        java.util.List<com.fasterxml.jackson.databind.JsonNode> lateCalcs = new java.util.ArrayList<>();
+        late.path("events").forEach(ev -> {
+            if (ev.path("type").asText().equals("CommissionCalculated")) {
+                lateCalcs.add(ev);
+            }
+        });
+        com.fasterxml.jackson.databind.JsonNode all = feed(get(url).param("afterSeq", "0").param("limit", "1000")
+                .header("Authorization", bearer));
+        java.util.List<com.fasterxml.jackson.databind.JsonNode> envelopes = new java.util.ArrayList<>();
+        all.path("events").forEach(envelopes::add);
+        assertThat(ga.comm.outbox.fixture.CloseInvariant.violations(envelopes)).isEmpty();
+        assertThat(lateCalcs).isNotEmpty().allSatisfy(ev -> assertThat(ev.path("payload").path("closeYm").asText()).isEqualTo("202609"));
+    }
+
+    private com.fasterxml.jackson.databind.JsonNode feed(org.springframework.test.web.servlet.RequestBuilder request) throws Exception {
+        byte[] body = mvc.perform(request).andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
+        com.fasterxml.jackson.databind.JsonNode json = new com.fasterxml.jackson.databind.ObjectMapper().readTree(body);
+        assertThat(ga.comm.outbox.contract.PortalContract.get().validateApiSchema("FeedResponse", json)).as(json.toString()).isEmpty();
+        return json;
     }
 
     private void policy(String table, String id, String fixture) throws Exception {

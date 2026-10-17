@@ -1,0 +1,18 @@
+{
+  "eventId": "5eed0000-0000-4000-8000-000000000005",
+  "seq": 5,
+  "type": "LimitLedgerPosted",
+  "version": 1,
+  "occurredAt": "2026-08-25T14:00:00+09:00",
+  "aggregate": {
+    "kind": "LIMIT_LEDGER",
+    "id": "LG-0001"
+  },
+  "payload": {
+    "ledgerId": "LG-0001",
+    "postingSeq": 2,
+    "calcId": "884214",
+    "amount": 800000,
+    "accumAfter": 3600000
+  }
+}

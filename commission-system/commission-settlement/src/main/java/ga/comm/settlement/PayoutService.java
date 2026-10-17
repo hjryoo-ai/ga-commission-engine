@@ -10,6 +10,9 @@ import ga.comm.domain.time.CloseYm;
 import ga.comm.domain.type.CalcStatus;
 import ga.comm.domain.type.RecipientType;
 
+import java.time.Clock;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -37,15 +40,27 @@ public class PayoutService {
     private final SettleCloseStore closeStore;
     private final ClawbackOffsetService offsetService;
     private final WithholdingTaxPolicy taxPolicy;
+    private final PayoutStatementStore statementStore;
+    private final Clock clock;
+    private final List<PayoutListener> listeners;
 
+    /**
+     * @param statementStore 지급명세 정본(PAYOUT_STATEMENT — v1.2.5, 부록 B-15). 정산 행과 같은 트랜잭션에서 저장한다
+     * @param clock          지급 확정 시각({@code paid_at})의 출처
+     * @param listeners      명세 저장 뒤 같은 트랜잭션에서 통지(아웃박스 PayoutCompleted — Phase E1)
+     */
     public PayoutService(CommCalcStore calcStore, AgentSettlementStore settlementStore,
                          SettleCloseStore closeStore, ClawbackOffsetService offsetService,
-                         WithholdingTaxPolicy taxPolicy) {
+                         WithholdingTaxPolicy taxPolicy, PayoutStatementStore statementStore, Clock clock,
+                         List<PayoutListener> listeners) {
         this.calcStore = Objects.requireNonNull(calcStore);
         this.settlementStore = Objects.requireNonNull(settlementStore);
         this.closeStore = Objects.requireNonNull(closeStore);
         this.offsetService = Objects.requireNonNull(offsetService);
         this.taxPolicy = Objects.requireNonNull(taxPolicy);
+        this.statementStore = Objects.requireNonNull(statementStore);
+        this.clock = Objects.requireNonNull(clock);
+        this.listeners = List.copyOf(listeners);
     }
 
     /** 지급 런의 처리 단위 — 수급자 하나가 한 트랜잭션(항목 격리)이다. */
@@ -110,8 +125,9 @@ public class PayoutService {
             }
         }
 
-        settlementStore.saveAll(List.of(new SettlementRow(ym, runSeq, key.type(), key.id(),
-                grossNet, offset, carried, payable, calcIds)));
+        SettlementRow settlement = new SettlementRow(ym, runSeq, key.type(), key.id(),
+                grossNet, offset, carried, payable, calcIds);
+        settlementStore.saveAll(List.of(settlement));
 
         for (CommCalcRecord record : records) {
             if (record.status() == CalcStatus.CONFIRMED) {
@@ -120,8 +136,15 @@ public class PayoutService {
         }
 
         WithholdingTaxPolicy.Withholding tax = taxPolicy.taxOn(payable);
-        return new PayoutStatement(ym, runSeq, key.type(), key.id(), payable,
+        PayoutStatement statement = new PayoutStatement(ym, runSeq, key.type(), key.id(), payable,
                 tax.incomeTax(), tax.localTax(), payable.minus(tax.total()));
+        // 지급명세 정본(v1.2.5 — 부록 B-15): 정산 행·PAID 전이와 같은 트랜잭션. 지급 시각은 주입된 시계
+        OffsetDateTime paidAt = OffsetDateTime.now(clock).truncatedTo(ChronoUnit.SECONDS);
+        statementStore.save(statement, paidAt);
+        for (PayoutListener listener : listeners) {
+            listener.onSettled(statement, settlement, records, paidAt);
+        }
+        return statement;
     }
 
     /** 지급 런 전체 실행 — 배치 밖(테스트·수동 운영)에서 쓰는 편의 메서드. */

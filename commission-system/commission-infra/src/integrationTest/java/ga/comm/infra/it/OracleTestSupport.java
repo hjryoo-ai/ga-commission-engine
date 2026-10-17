@@ -106,7 +106,7 @@ public final class OracleTestSupport {
                 "BATCH_STEP_EXECUTION_CONTEXT", "BATCH_JOB_EXECUTION_CONTEXT",
                 "BATCH_STEP_EXECUTION", "BATCH_JOB_EXECUTION_PARAMS",
                 "BATCH_JOB_EXECUTION", "BATCH_JOB_INSTANCE",
-                "AGENT_SETTLEMENT_CALC", "AGENT_SETTLEMENT", "ADJUSTMENT",
+                "PAYOUT_STATEMENT", "AGENT_SETTLEMENT_CALC", "AGENT_SETTLEMENT", "ADJUSTMENT",
                 "CLAWBACK_OFFSET_HIST", "CLAWBACK_RECEIVABLE",
                 "DEFERRAL_SCHEDULE",
                 "LIMIT_LEDGER_DTL", "LIMIT_LEDGER_HIST", "LIMIT_LEDGER",
@@ -120,6 +120,8 @@ public final class OracleTestSupport {
                 // Phase E3: 정책·상품군은 비운다. 스냅샷(DISC_GRADE_SNAPSHOT·_ITEM)은 불변 트리거가 DELETE를 거부하므로
                 // 비우지 않는다. 채번은 SEQUENCE(V13)라 테스트를 가로질러 계속 증가한다.
                 "DISC_GRADING_POLICY", "DISC_RANKING_POLICY", "DISC_PRODUCT_GROUP_MEMBER", "DISC_PRODUCT_GROUP");
+        // Phase E1: OUTBOX_EVENT·OUTBOX_SEQ는 append-only 트리거(V106)가 DELETE를 거부하므로 비우지 않는다 — 아웃박스 시험은
+        // 시작 시점의 headSeq에 상대적으로 단언한다(OutboxStoreContract).
         try (Connection connection = dataSource.getConnection();
              Statement statement = connection.createStatement()) {
             for (String table : tables) {

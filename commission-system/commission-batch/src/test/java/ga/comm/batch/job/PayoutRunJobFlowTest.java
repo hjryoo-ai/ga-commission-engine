@@ -68,14 +68,15 @@ class PayoutRunJobFlowTest {
     void 항목_격리와_다음_런_수습() {
         harness.calculator().process(EventFixtures.newContract());
         new MonthCloseService(harness.calcStore, harness.eventStore,
-                new InMemoryLimitLedgerStore(), closeStore, List.of())
+                new InMemoryLimitLedgerStore(), closeStore, List.of(), java.time.Clock.fixed(java.time.Instant.parse("2026-09-05T09:00:00Z"), java.time.ZoneId.of("Asia/Seoul")), List.of())
                 .close(CloseYm.of("202608"), "정산담당");
 
         // 설계사 A에 기존 채권 300,000 — 상계가 지급 런에서 일어남을 본다
         receivables.create(EventFixtures.AGENT_A, null, Money.won(300_000));
 
         PayoutService payoutService = new PayoutService(harness.calcStore, settlementStore,
-                closeStore, new ClawbackOffsetService(receivables), WithholdingTaxPolicy.STANDARD_3_3);
+                closeStore, new ClawbackOffsetService(receivables), WithholdingTaxPolicy.STANDARD_3_3,
+                new ga.comm.settlement.fixture.InMemoryPayoutStatementStore(), java.time.Clock.fixed(java.time.Instant.parse("2026-09-05T09:00:00Z"), java.time.ZoneId.of("Asia/Seoul")), List.of());
         Job job = PayoutRunJobFactory.job(env.runtime().jobRepository(),
                 new TransactionTemplate(new ResourcelessTransactionManager()), payoutService);
 

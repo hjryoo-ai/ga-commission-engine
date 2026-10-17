@@ -30,7 +30,7 @@ import java.util.regex.Pattern;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * E11(provider 계약): 엔진이 만든 실제 응답이 ga-disclosure 계약({@code contracts/api/v1/engine-disclosure.openapi.yaml})의
+ * E11(provider 계약): 엔진이 만든 실제 응답이 ga-disclosure 계약({@code contracts/shared/ga-disclosure/api/v1/engine-disclosure.openapi.yaml})의
  * 스키마를 통과한다 — oneOf 분기(OK/UNAVAILABLE)·{@code additionalProperties:false}·tieBreak 두 값·전부 산출불가.
  * 망가뜨린 응답(UNAVAILABLE에 등급 필드, ratioToAvg 숫자, OK에 tie 누락)은 스키마가 거부한다(검증이 실제로 작동한다는 대조군).
  * 계약 파일은 CHECKSUMS와 일치하고 UPSTREAM은 출처 커밋을 고정한다. OpenAPI(YAML)는 JSON으로 바꿔 $ref 포인터로 검증한다(원격 조회 없음).
@@ -121,8 +121,10 @@ class EngineDisclosureContractTest {
         String hash = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(CONTRACTS.resolve(FILE))));
         List<String> lines = Files.readAllLines(CONTRACTS.resolve("CHECKSUMS"));
         assertThat(lines).contains(hash + "  " + FILE);
-        assertThat(Files.readString(CONTRACTS.resolve("UPSTREAM")).trim())
-                .matches(Pattern.compile("^hjryoo-ai/ga-disclosure@[0-9a-f]{40}$"));
+        // E1 D-16: UPSTREAM 첫 줄이 출처 커밋, 다음 줄부터 사본 파일 목록(닫힌 목록 — verifyContractChecksums가 대조)
+        List<String> upstream = Files.readAllLines(CONTRACTS.resolve("UPSTREAM"));
+        assertThat(upstream.get(0).trim()).matches(Pattern.compile("^hjryoo-ai/ga-disclosure@[0-9a-f]{40}$"));
+        assertThat(upstream.subList(1, upstream.size())).contains(FILE);
         // 계약 1.1.0: 401·403·422(POST) 응답이 있다(E3 계획 Q3 — ga-disclosure PR #2). 1.2.0: E3.1(ga-disclosure PR #4).
         // 1.2.1: E3.2 — format → pattern(표기만)
         JsonNode doc = new YAMLMapper().readTree(Files.readString(CONTRACTS.resolve(FILE)));

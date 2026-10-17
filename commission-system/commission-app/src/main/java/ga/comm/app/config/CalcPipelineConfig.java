@@ -18,6 +18,8 @@ import ga.comm.calc.store.PolicyEventStore;
 import ga.comm.clawback.ClawbackPostProcessor;
 import ga.comm.clawback.ClawbackStep;
 import ga.comm.clawback.ReviveStep;
+import ga.comm.deferral.DeferralCancelListener;
+import ga.comm.deferral.DeferralReleaseService;
 import ga.comm.deferral.DeferralSchedulePoster;
 import ga.comm.deferral.DeferralScheduleStore;
 import ga.comm.deferral.DeferralSplitStep;
@@ -75,7 +77,8 @@ public class CalcPipelineConfig {
                                                      CommCalcStore commCalcStore,
                                                      LimitLedgerStore limitLedgerStore,
                                                      DeferralScheduleStore deferralScheduleStore,
-                                                     CloseYmResolver closeYmResolver) {
+                                                     CloseYmResolver closeYmResolver,
+                                                     DeferralReleaseService deferralReleaseService) {
         EffectivePeriod from = EffectivePeriod.from(STEPS_FROM);
         List<StepConfig> steps = List.of(
                 new StepConfig(new BaseCommissionStep(), from, 10),
@@ -93,7 +96,9 @@ public class CalcPipelineConfig {
         List<CalcResultListener> listeners = List.of(
                 new LimitLedgerPoster(limitLedgerStore),
                 new ClawbackPostProcessor(new LimitLedgerService(limitLedgerStore)),
-                new DeferralSchedulePoster(deferralScheduleStore));
+                new DeferralSchedulePoster(deferralScheduleStore),
+                // 해약·실효·철회 → 미도래 분급 취소(E1 Q3 — E1 이전부터 운영 조립에 빠져 있던 결함, 골든 조립과 같게)
+                new DeferralCancelListener(deferralReleaseService));
 
         return new CommissionCalculator(ruleRepository, recipientResolver,
                 new CalculationPipeline(steps), policyEventStore, commCalcStore,

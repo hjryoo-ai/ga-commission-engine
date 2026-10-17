@@ -4,7 +4,9 @@ import ga.comm.domain.time.CloseYm;
 import ga.comm.infra.mapper.SettleCloseMapper;
 import ga.comm.settlement.SettleCloseStore;
 
+import java.time.LocalDateTime;
 import java.util.Objects;
+import java.util.Optional;
 
 /** SETTLE_CLOSE Oracle 어댑터. */
 public class OracleSettleCloseStore implements SettleCloseStore {
@@ -22,8 +24,13 @@ public class OracleSettleCloseStore implements SettleCloseStore {
     }
 
     @Override
-    public void transition(CloseYm closeYm, CloseState to, String by, String forceReason) {
-        mapper.upsert(closeYm.value(), to.name(), by, forceReason);
+    public void transition(CloseYm closeYm, CloseState to, String by, String forceReason, LocalDateTime closedAt) {
+        mapper.upsert(closeYm.value(), to.name(), by, forceReason, closedAt);
+    }
+
+    @Override
+    public Optional<LocalDateTime> closedAtOf(CloseYm closeYm) {
+        return Optional.ofNullable(mapper.closedAtOf(closeYm.value()));
     }
 
     @Override
