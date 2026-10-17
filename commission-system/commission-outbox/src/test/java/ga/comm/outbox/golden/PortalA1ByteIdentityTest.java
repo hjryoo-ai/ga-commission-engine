@@ -12,7 +12,9 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * E2 P17 — 포털 계약 v1.3의 A-1 샘플({@code samples/a1/a1_portal_150000.jsonl}, 사본 @ {@code UPSTREAM})이 엔진 첫 판과 <b>바이트로 같다</b>.
+ * E2 P17·e2.1 — 포털 계약 v1.4의 A-1 샘플({@code samples/a1/a1_portal_150000_e2.jsonl}, 사본 @ {@code UPSTREAM})이 엔진 <b>두 번째 판</b>과
+ * <b>바이트로 같다</b>(포털이 둘째 판을 A-1 정본으로 채택 — 포털 Phase 2 수용 심사 §3 N4, E2 수용 심사 §3. 첫 판이 둘째 판의 앞부분이라는 것은
+ * {@code PortalA1StreamTest}가 본다).
  * E1의 {@code PortalA1ComparisonTest}(같은 입력을 돌려 차이 표 + 타입 순서를 대조 — 포털 샘플이 계약 예시였을 때)를 대신한다: 포털이 엔진
  * 스트림을 그대로 들였으므로 대조는 차이 표가 아니라 바이트 일치다(E1 수용 심사 §3-3). 세 바이트 열 — 포털 사본, 엔진 골든 파일, 지금 다시 돌린
  * 시나리오 — 이 모두 같아야 한다.
@@ -20,13 +22,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 class PortalA1ByteIdentityTest {
 
     @Test
-    void 포털_A1_샘플은_엔진_첫_판과_바이트가_같다() throws IOException {
-        byte[] portal = PortalContract.portalBytes("events/v1/samples/a1/" + A1Scenario.FIRST_EDITION + ".jsonl");
-        byte[] golden = Files.readAllBytes(PortalA1StreamTest.snapshotDir().resolve(A1Scenario.FIRST_EDITION + ".jsonl"));
-        List<String> regenerated = PortalA1StreamTest.firstEdition();
+    void 포털_A1_샘플은_엔진_두_번째_판과_바이트가_같다() throws IOException {
+        byte[] portal = PortalContract.portalBytes("events/v1/samples/a1/" + A1Scenario.SECOND_EDITION + ".jsonl");
+        byte[] golden = Files.readAllBytes(PortalA1StreamTest.snapshotDir().resolve(A1Scenario.SECOND_EDITION + ".jsonl"));
+        List<String> regenerated = PortalA1StreamTest.secondEdition();
         assertThat(portal).as("포털 사본 = 엔진 골든 파일").isEqualTo(golden);
         assertThat(new String(golden, StandardCharsets.UTF_8)).as("엔진 골든 파일 = 지금 돌린 시나리오").isEqualTo(String.join("\n", regenerated) + "\n");
         assertThat(PortalContract.sampleNames()).as("포털 a1/에는 그 파일 하나뿐").filteredOn(n -> n.startsWith("a1/"))
-                .containsExactly("a1/" + A1Scenario.FIRST_EDITION + ".jsonl");
+                .containsExactly("a1/" + A1Scenario.SECOND_EDITION + ".jsonl");
     }
 }

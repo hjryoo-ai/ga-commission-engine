@@ -133,7 +133,7 @@ public final class PortalContract {
     }
 
     /**
-     * 샘플 이벤트 전부 — 파일 이름 순, JSONL(포털 계약 v1.3 {@code a1/a1_portal_150000.jsonl} — 엔진 E2 ⓪a 바이트)은 줄마다 하나. 포털 v1.3 기준
+     * 샘플 이벤트 전부 — 파일 이름 순, JSONL(포털 계약 v1.4 {@code a1/a1_portal_150000_e2.jsonl} — 엔진 E2 ⓪ 둘째 판 바이트)은 줄마다 하나. 포털 v1.3 기준
      * 17건(a1 10 + contract-only 3 + standalone 4), 13종.
      */
     public static List<Sample> sampleEvents() {
