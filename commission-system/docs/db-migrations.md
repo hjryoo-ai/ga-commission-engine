@@ -1,3 +1,5 @@
+> 🌐 **한국어** · [English](en/db-migrations.md)
+
 # DB 마이그레이션 번호 규칙
 
 > E3.2(2026-10-09) 문서화. 결정 출처: ga-disclosure `docs/phase-03A-수용심사.md` §4-①(엔진 E3.1 질문 1에 대한 승인). 시험: `commission-infra` `MigrationNumberingTest`가 이 문서의 빈 번호 표를 읽어 실제 파일과 대조한다.
