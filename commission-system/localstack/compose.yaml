@@ -1,0 +1,18 @@
+# 로컬 스택 Oracle(E2 ⑤). 이미지는 gradle/libs.versions.toml의 oracle-free-image(digest 고정 — 계획 P7)이고 up.sh가 ORACLE_IMAGE로 넘긴다.
+# 암호는 up.sh가 매번 무작위로 만들어 .state/(권한 700, git 제외)에만 둔다 — 저장소에 비밀 0.
+name: ga-engine-localstack
+services:
+  oracle:
+    image: ${ORACLE_IMAGE:?ORACLE_IMAGE is required - run localstack/up.sh}
+    environment:
+      ORACLE_PASSWORD: ${ORACLE_PASSWORD:?ORACLE_PASSWORD is required - run localstack/up.sh}
+      APP_USER: engine
+      APP_USER_PASSWORD: ${ORACLE_PASSWORD:?ORACLE_PASSWORD is required - run localstack/up.sh}
+    ports:
+      - "${ORACLE_PORT:-1521}:1521"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 5s
+      timeout: 10s
+      retries: 120
+      start_period: 10s

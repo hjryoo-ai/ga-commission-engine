@@ -67,6 +67,31 @@ jobs:
             commission-system/*/build/test-results/**/*.xml
           if-no-files-found: error
 
+  localstack:
+    name: 로컬 스택(A-1 피드)
+    # E2 ⑤·C8(승인 Q6): compose로 Oracle Free(digest 고정 — gradle/libs.versions.toml) → Flyway·시드·A-1 두 번째 판(commission-localstack,
+    # 운영 서비스·잡 + 단계 시계·순차 eventId) → 엔진 앱 기동 → 피드를 afterSeq=0부터 받아 a1_portal_150000_e2.jsonl과 바이트 비교.
+    # 풀 티어와 병렬, PR과 main 머지에서만. 토큰·DB 암호는 up.sh가 러너 안에서 만들고 출력하지 않는다.
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: 로컬 스택 기동 (Oracle + 시드 + A-1 시나리오 + 엔진 앱)
+        run: localstack/up.sh
+      - name: 피드 = 두 번째 판 (바이트)
+        run: localstack/up.sh verify
+      - name: 앱 로그 (실패 시)
+        if: failure()
+        run: tail -n 200 localstack/.state/app.log || true
+      - name: 정리
+        if: always()
+        run: localstack/up.sh down
+
   no-docker:
     name: Docker 없음 → 통합 테스트 실패 (스킵 아님)
     # E3 수용 심사 §2-17·§3-8(E3.1 선택 항목): ga-disclosure `no-docker` 잡과 같은 방식. Docker가 없으면 Oracle IT는 스킵이 아니라

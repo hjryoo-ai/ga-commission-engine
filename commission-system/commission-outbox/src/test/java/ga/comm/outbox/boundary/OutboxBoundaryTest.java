@@ -23,12 +23,13 @@ class OutboxBoundaryTest {
     private static final List<String> BUSINESS = List.of("commission-domain", "commission-rule", "commission-calc", "commission-limit",
             "commission-deferral", "commission-clawback", "commission-inbound", "commission-recon", "commission-shadow",
             "commission-settlement", "commission-disclosure");
-    /** project(":commission-outbox")를 참조해도 되는 모듈(E1 승인 Q4). */
-    private static final List<String> ALLOWED = List.of("commission-infra", "commission-api", "commission-batch", "commission-app");
+    /** project(":commission-outbox")를 참조해도 되는 모듈(E1 승인 Q4) + 로컬 스택 실행기(E2 ⑤ — testFixtures의 시나리오·단계 시계, 운영 jar 밖). */
+    private static final List<String> ALLOWED = List.of("commission-infra", "commission-api", "commission-batch", "commission-app",
+            "commission-localstack");
     private static final List<String> ALL = List.of("commission-domain", "commission-rule", "commission-calc", "commission-limit",
             "commission-deferral", "commission-clawback", "commission-inbound", "commission-recon", "commission-shadow",
             "commission-settlement", "commission-disclosure", "commission-outbox", "commission-batch", "commission-api",
-            "commission-infra", "commission-app");
+            "commission-infra", "commission-app", "commission-localstack");
     private static final Pattern OUTBOX_IMPORT = Pattern.compile("(?m)^\\s*import\\s+(static\\s+)?ga\\.comm\\.outbox\\b|\\bga\\.comm\\.outbox\\.");
     private static final Pattern SPRING_IMPORT = Pattern.compile("(?m)^\\s*import\\s+(static\\s+)?org\\.springframework\\.");
 

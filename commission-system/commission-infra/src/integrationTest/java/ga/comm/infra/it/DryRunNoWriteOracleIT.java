@@ -68,8 +68,17 @@ class DryRunNoWriteOracleIT {
         List<Object> results = p.inTx(() -> DryRunScenario.simulateAll(DryRunScenario.simulator(e)));
         var estimate = p.inTx(() -> DryRunScenario.statementQuery(p, e).estimate("A-1001", DryRunScenario.OPEN_MONTH));
 
-        assertThat(DryRunScenario.hashes(jdbc)).as("업무 표 12개 전후 해시").isEqualTo(before);
-        assertThat(DryRunScenario.rows(jdbc, "SELECT * FROM OUTBOX_EVENT")).as("아웃박스 전후 바이트 동일(새 행 0)").isEqualTo(outboxBefore);
+        Map<String, String> after = DryRunScenario.hashes(jdbc);
+        List<String> outboxAfter = DryRunScenario.rows(jdbc, "SELECT * FROM OUTBOX_EVENT");
+        StringBuilder md = new StringBuilder("| 표 | 전 | 후 |\n|---|---|---|\n");
+        before.forEach((t, h) -> md.append("| ").append(t).append(" | ").append(h).append(" | ").append(after.get(t)).append(" |\n"));
+        md.append("| OUTBOX_EVENT | ").append(outboxBefore.size()).append("행 | ").append(outboxAfter.size()).append("행 |\n");
+        Path out = Path.of(System.getProperty("user.dir"), "build", "reports", "dry-run", "c1-simulation-statement.md");
+        Files.createDirectories(out.getParent());
+        Files.writeString(out, md, StandardCharsets.UTF_8);
+
+        assertThat(after).as("업무 표 12개 전후 해시").isEqualTo(before);
+        assertThat(outboxAfter).as("아웃박스 전후 바이트 동일(새 행 0)").isEqualTo(outboxBefore);
         // 공허하지 않다: 원장이 있는 계약의 해약(환수), 분급 있는 계약의 해약(취소 예정), 신계약(오버레이 원장 개설)
         var newContract = (ga.comm.settlement.simulation.SimulationModel.NewContractResult) results.get(0);
         var cancel = (ga.comm.settlement.simulation.SimulationModel.PolicyEventResult) results.get(1);
