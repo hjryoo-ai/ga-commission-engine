@@ -1,3 +1,5 @@
+> 🌐 **한국어** · [English](README.en.md)
+
 # ga-commission-engine
 
 **GA(법인보험대리점) 설계사 수수료 계산·지급·환수·정산 엔진** — 규제 변동성을 코드가 아닌 데이터로 흡수하도록 설계한 Java/Oracle 시스템.
