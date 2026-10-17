@@ -97,6 +97,20 @@ public class InMemoryRuleStore implements RuleRepository, CommRateAdminStore {
     }
 
     @Override
+    public List<InsurerCode> insurersWithRate(Direction direction, ProductKey productKey, CommTypeCode commType,
+                                              LocalDate baseDate) {
+        return rates.stream()
+                .filter(r -> r.status() == RateStatus.ACTIVE)
+                .filter(r -> r.key().direction() == direction && r.key().productKey().equals(productKey)
+                        && r.key().commType().equals(commType))
+                .filter(r -> r.period().contains(baseDate))
+                .map(r -> r.key().insurerCd())
+                .distinct()
+                .sorted(java.util.Comparator.comparing(InsurerCode::value))
+                .toList();
+    }
+
+    @Override
     public Optional<CommTypeAttr> findCommTypeAttr(CommTypeCode commType, LocalDate baseDate) {
         return resolve(commTypeAttrs, a -> a.commType().equals(commType), CommTypeAttr::period,
                 baseDate, "COMM_TYPE_MST " + commType);

@@ -17,4 +17,5 @@ include(
     "commission-api",
     "commission-infra",
     "commission-app",
+    "commission-localstack",   // E2 ⑤ 로컬 스택 시나리오 실행기(운영 jar 밖)
 )

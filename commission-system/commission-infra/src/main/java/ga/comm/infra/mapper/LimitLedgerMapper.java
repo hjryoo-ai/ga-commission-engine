@@ -47,6 +47,11 @@ public interface LimitLedgerMapper {
             + "WHERE policy_no = #{policyNo} AND agent_id = #{agentId} FOR UPDATE")
     Row lockByKey(@Param("policyNo") String policyNo, @Param("agentId") String agentId);
 
+    /** 잠그지 않는 같은 조회(E2 ② 시뮬레이션 — 원장 잠금 중에도 기다리지 않는다, C3). */
+    @Select("SELECT " + COLUMNS + " FROM LIMIT_LEDGER "
+            + "WHERE policy_no = #{policyNo} AND agent_id = #{agentId}")
+    Row peekByKey(@Param("policyNo") String policyNo, @Param("agentId") String agentId);
+
     @Insert("""
             INSERT INTO LIMIT_LEDGER (policy_no, agent_id, contract_date, fy_start, fy_end,
                 monthly_premium, limit_multiple, limit_amount, accum_paid, rule_version_id)

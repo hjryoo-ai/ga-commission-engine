@@ -48,6 +48,7 @@ import ga.comm.limit.fixture.InMemoryLimitLedgerStore;
 import ga.comm.rule.admin.RateApprovalService;
 import ga.comm.rule.model.ChannelType;
 import ga.comm.rule.model.EffectivePeriod;
+import ga.comm.settlement.ClosedMonthGuardedCalcStore;
 import ga.comm.settlement.SettleCloseStore;
 import ga.comm.settlement.fixture.InMemorySettleCloseStore;
 
@@ -116,7 +117,8 @@ public final class GoldenEngine {
     public GoldenEngine(GoldenCase gc, Wiring wiring) {
         this.gc = gc;
         this.eventStore = wiring.events(rawEvents);
-        this.calcStore = wiring.calcs(rawCalcs, rawEvents);
+        // 운영 조립과 같은 순서: 마감월 가드가 바깥(E2 ④). 골든 24건이 가드를 지나며 결과가 같음을 증명한다
+        this.calcStore = new ClosedMonthGuardedCalcStore(wiring.calcs(rawCalcs, rawEvents), closeStore);
         this.ledgers = wiring.ledgers(rawLedgers);
         this.schedules = wiring.schedules(rawSchedules);
     }
@@ -192,10 +194,11 @@ public final class GoldenEngine {
         GoldenEngine engine = new GoldenEngine(GoldenCase.assemblyOnly(Set.of("LIMIT", "CLAWBACK", "DEFERRAL")));
         CommissionCalculator calculator = engine.buildCalculator();
         return new Assembly(calculator.listeners().stream().<Class<?>>map(Object::getClass).toList(),
-                engine.revisionService().hooks().stream().<Class<?>>map(Object::getClass).toList());
+                engine.revisionService().hooks().stream().<Class<?>>map(Object::getClass).toList(), engine.calcStore.getClass());
     }
 
-    public record Assembly(List<Class<?>> listeners, List<Class<?>> reversalHooks) {
+    /** @param calcStoreOuter 계산 저장소의 가장 바깥 클래스(운영 = 마감월 가드 — E2 ④) */
+    public record Assembly(List<Class<?>> listeners, List<Class<?>> reversalHooks, Class<?> calcStoreOuter) {
     }
 
     // ---- 타임라인 단계 실행 ----

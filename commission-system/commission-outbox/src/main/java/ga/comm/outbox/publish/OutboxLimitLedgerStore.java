@@ -60,6 +60,12 @@ public final class OutboxLimitLedgerStore implements LimitLedgerStore {
         return found;
     }
 
+    /** 잠그지 않는 읽기는 그대로 위임한다 — 발행·"적재 때" 기억과 무관(읽기만, E2 ②). 기본 구현(find)을 타면 잠근다. */
+    @Override
+    public Optional<LimitLedger> peek(PolicyNo policyNo, AgentId agentId) {
+        return delegate.peek(policyNo, agentId);
+    }
+
     @Override
     public LimitLedger getOrCreate(PolicyNo policyNo, AgentId agentId, LocalDate contractDate, Money monthlyPremium,
                                    LimitRule rule) {

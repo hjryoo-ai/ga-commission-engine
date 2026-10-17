@@ -52,6 +52,11 @@ public class CommissionCalculator {
         this.listeners = List.copyOf(listeners);
     }
 
+    /** 조립된 파이프라인(읽기 전용) — 운영 조립과 시뮬레이션 dry-run 파이프라인의 일치 시험(E2 ②). */
+    public CalculationPipeline pipeline() {
+        return pipeline;
+    }
+
     /** 조립된 저장 후 훅(읽기 전용) — 운영 조립과 골든 조립의 일치 시험(Phase E1 Q3). */
     public List<CalcResultListener> listeners() {
         return listeners;

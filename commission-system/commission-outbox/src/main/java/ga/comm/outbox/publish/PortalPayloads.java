@@ -279,6 +279,35 @@ public final class PortalPayloads {
     }
 
     /**
+     * 잠정 명세(E2 ①) — "지금 마감·지급하면"의 값. {@code gross}·{@code clawbackOffset}은 {@code StatementConfirmed}와 같은 분류(레코드 + 도래
+     * 미리보기), {@code withholdingTax}·{@code net}은 지급 런과 같은 산식({@code PayoutMath}). {@code gross + clawbackOffset}은 산출기의 순액과
+     * 같아야 한다(지급 이벤트와 같은 단언). {@code basisSeq} = 산출 직전의 아웃박스 최대 부여 순번(하한 — E2 Q3), {@code asOf} = 주입된 시계.
+     */
+    public static ObjectNode statementEstimated(ga.comm.settlement.estimate.StatementEstimator.Estimate e, long basisSeq,
+                                                OffsetDateTime asOf) {
+        Totals t = totals(e.records());
+        if (!t.net().equals(e.math().grossNet())) {
+            throw new IllegalStateException("잠정 명세의 gross + clawbackOffset(" + t.net() + ") ≠ 산출 순액(" + e.math().grossNet()
+                    + ") — 합산 정의가 어긋났다: " + e.agentId() + "/" + e.closeYm());
+        }
+        ObjectNode p = OutboxPublisher.payload();
+        p.put("agentId", e.agentId());
+        p.put("closeYm", e.closeYm().value());
+        p.put("gross", t.gross().toLong());
+        p.put("clawbackOffset", t.clawbackOffset().toLong());
+        p.put("adjustment", e.adjustment().toLong());
+        p.put("withholdingTax", e.math().tax().total().toLong());
+        p.put("net", e.math().net().toLong());
+        p.put("basisSeq", basisSeq);
+        p.put("asOf", OutboxPublisher.instant(asOf));
+        // 계약 v1.3 R7(선택) — 지급 런과 같은 정의(PayoutCompleted의 같은 필드)
+        p.put("receivableOffset", e.math().receivableOffset().toLong());
+        p.put("carriedReceivable", e.math().carriedReceivable().toLong());
+        p.put("payable", e.math().payable().toLong());
+        return p;
+    }
+
+    /**
      * 지급 런의 확정값(계약 v1.1 K5). {@code gross + clawbackOffset}은 정산 행의 {@code gross_net}(전 레코드 순합)과 같아야 한다 —
      * 두 정의(포털 합산·엔진 순액)가 어긋나면 발행 시점에 멈춘다(E1 P4). {@code adjustment}는 넣지 않는다 — 정정은 지급 순액에 들어 있지
      * 않다(E1 P5, 엔진 §11).

@@ -56,7 +56,7 @@ tasks.named<Test>("test") {
 // build.gradle.kts는 infra·api·batch·app뿐, 아웃박스 main은 Spring 무의존. 소스셋 밖 파일을 읽으므로 전부 입력으로 선언한다.
 val boundaryModules = listOf("commission-domain", "commission-rule", "commission-calc", "commission-limit", "commission-deferral",
     "commission-clawback", "commission-inbound", "commission-recon", "commission-shadow", "commission-settlement", "commission-disclosure",
-    "commission-outbox", "commission-batch", "commission-api", "commission-infra", "commission-app")
+    "commission-outbox", "commission-batch", "commission-api", "commission-infra", "commission-app", "commission-localstack")
 tasks.named<Test>("test") {
     systemProperty("engine.rootDir", rootProject.projectDir.absolutePath)
     boundaryModules.forEach { m ->

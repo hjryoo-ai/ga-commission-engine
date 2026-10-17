@@ -25,6 +25,7 @@ import java.sql.Statement;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -35,7 +36,9 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public final class OracleTestSupport {
 
-    private static final String IMAGE = "gvenzl/oracle-free:23-slim-faststart";
+    /** 이미지 참조(digest 고정)는 버전 카탈로그 한 곳 — Gradle이 {@code engine.oracleImage}로 준다(E2 계획 P7). 기본값 없음. */
+    private static final String IMAGE = Objects.requireNonNull(System.getProperty("engine.oracleImage"),
+            "engine.oracleImage(Gradle이 gradle/libs.versions.toml의 oracle-free-image로 준다)");
     private static final AtomicLong SEQ = new AtomicLong(0);
 
     private static OracleContainer container;

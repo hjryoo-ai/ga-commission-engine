@@ -45,18 +45,8 @@ public final class StatementPublisher implements MonthCloseListener {
                 byAgent.computeIfAbsent(r.recipientId(), k -> new ArrayList<>()).add(r);
             }
         }
-        Map<String, Money> adjustmentByAgent = new LinkedHashMap<>();
-        for (AdjustmentService.Adjustment a : adjustments.findByCloseYm(closeYm)) {
-            if (a.targetCalcId() == null) {
-                continue;   // 대상 없는 정정은 설계사에 귀속할 수 없다 — AdjustmentPosted도 없다(OutboxAdjustmentStore가 거부)
-            }
-            CommCalcRecord target = calcStore.findById(a.targetCalcId()).orElseThrow(() -> new IllegalStateException(
-                    "정정 대상 계산이 없다: adjId=" + a.adjId()));
-            if (target.recipientType() == RecipientType.AGENT) {
-                adjustmentByAgent.merge(target.recipientId(), a.amount(), Money::plus);
-                byAgent.computeIfAbsent(target.recipientId(), k -> new ArrayList<>());
-            }
-        }
+        Map<String, Money> adjustmentByAgent = adjustmentByAgent(adjustments, calcStore, closeYm);
+        adjustmentByAgent.keySet().forEach(agent -> byAgent.computeIfAbsent(agent, k -> new ArrayList<>()));
         for (Map.Entry<String, List<CommCalcRecord>> e : byAgent.entrySet()) {
             String agentId = e.getKey();
             publisher.publish(TYPE, KIND, PortalPayloads.statementAggregateId(agentId, closeYm),
@@ -64,5 +54,24 @@ public final class StatementPublisher implements MonthCloseListener {
                             adjustmentByAgent.getOrDefault(agentId, Money.ZERO), closedAt),
                     closedAt);
         }
+    }
+
+    /**
+     * 그 달 귀속 정정의 설계사별 합(대상 계산의 수급자가 AGENT인 것만, 대상 없는 정정 제외) — 마감 이벤트와 명세 조회 {@code CONFIRMED}(E2 ③)가
+     * 같은 규칙을 쓴다.
+     */
+    public static Map<String, Money> adjustmentByAgent(AdjustmentService.AdjustmentStore adjustments, CommCalcStore calcStore, CloseYm closeYm) {
+        Map<String, Money> out = new LinkedHashMap<>();
+        for (AdjustmentService.Adjustment a : adjustments.findByCloseYm(closeYm)) {
+            if (a.targetCalcId() == null) {
+                continue;   // 대상 없는 정정은 설계사에 귀속할 수 없다 — AdjustmentPosted도 없다(OutboxAdjustmentStore가 거부)
+            }
+            CommCalcRecord target = calcStore.findById(a.targetCalcId()).orElseThrow(() -> new IllegalStateException(
+                    "정정 대상 계산이 없다: adjId=" + a.adjId()));
+            if (target.recipientType() == RecipientType.AGENT) {
+                out.merge(target.recipientId(), a.amount(), Money::plus);
+            }
+        }
+        return out;
     }
 }

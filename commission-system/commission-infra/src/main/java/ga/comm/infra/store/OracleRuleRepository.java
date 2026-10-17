@@ -51,6 +51,13 @@ public class OracleRuleRepository implements RuleRepository {
     }
 
     @Override
+    public List<InsurerCode> insurersWithRate(Direction direction, ProductKey productKey, CommTypeCode commType,
+                                              LocalDate baseDate) {
+        return mapper.findInsurersWithRate(direction.name(), productKey.value(), commType.value(), baseDate).stream()
+                .map(InsurerCode::new).toList();
+    }
+
+    @Override
     public Optional<CommTypeAttr> findCommTypeAttr(CommTypeCode commType, LocalDate baseDate) {
         return unique(mapper.findCommTypeAttrs(commType.value(), baseDate),
                 "COMM_TYPE_MST " + commType + " 기준일=" + baseDate)

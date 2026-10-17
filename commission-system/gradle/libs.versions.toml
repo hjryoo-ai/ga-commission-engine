@@ -1,0 +1,6 @@
+# 버전 카탈로그(E2 ⑤ — 계획 P7). 지금은 Oracle Free 이미지 참조 하나만 둔다: Testcontainers IT 둘(OracleTestSupport·BootSmokeIT)과
+# 로컬 스택(localstack/compose.yaml — up.sh가 이 줄을 읽는다)이 같은 값을 쓴다. 라이브러리 버전은 Spring Boot BOM이 관리한다.
+[versions]
+# gvenzl/oracle-free:23-slim-faststart의 멀티 아키텍처 인덱스 digest(linux/amd64 d86d0979…, linux/arm64 b0c77037…) —
+# 2026-10-17 `docker buildx imagetools inspect`로 확인. 태그는 움직이므로 digest로 고정한다.
+oracle-free-image = "gvenzl/oracle-free@sha256:f5ff19033860d662c821cb04eb10483fa94f14f78eae252d054291ea07028093"

@@ -40,7 +40,7 @@ public class DeferralReleaseService {
         int held = 0;
 
         for (ScheduleEntry entry : scheduleStore.findDue(ym)) {
-            if (!policyStatus.isInforce(entry.policyNo(), ym)) {
+            if (!releasable(entry, ym, policyStatus)) {
                 scheduleStore.replace(entry.held(), DeferralTransitionReason.POLICY_NOT_INFORCE);
                 held++;
                 continue;
@@ -63,6 +63,14 @@ public class DeferralReleaseService {
             released.add(record);
         }
         return new ReleaseResult(released, held);
+    }
+
+    /**
+     * 도래분 하나가 이번 달 지급 대상인가(유지 조건) — 도래 처리와 잠정 명세의 도래 미리보기(E2 P1)가 같은 판정을 쓴다. 대상이면 그 달에
+     * {@code entry.amount()}의 DEFERRED 레코드 하나가 생기고, 아니면 HELD(금액 0).
+     */
+    public static boolean releasable(ScheduleEntry entry, CloseYm ym, PolicyStatusProvider policyStatus) {
+        return policyStatus.isInforce(entry.policyNo(), ym);
     }
 
     /** 해약/실효/철회 시 잔여(SCHEDULED) 스케줄 소멸. */

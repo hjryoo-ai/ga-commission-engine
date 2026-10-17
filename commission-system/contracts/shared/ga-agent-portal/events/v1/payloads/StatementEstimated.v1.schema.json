@@ -42,10 +42,23 @@
     },
     "basisSeq": {
       "type": "integer",
-      "minimum": 0
+      "minimum": 0,
+      "description": "예상의 기준(v1.3, R7) — 산출 직전 엔진이 부여한 아웃박스 최대 seq. 하한이다: 이 seq까지의 사실은 전부 반영됐고, 그 뒤의 사실도 반영됐을 수 있다. 포털은 검사하지 않고 기록만 한다"
     },
     "asOf": {
       "$ref": "../defs.schema.json#/$defs/instant"
+    },
+    "receivableOffset": {
+      "$ref": "../defs.schema.json#/$defs/won",
+      "description": "기존 환수 채권에서 이 지급으로 상계될 예상 금액(정수 원, v1.3 R7 — 선택) — PayoutCompleted.receivableOffset과 같은 정의"
+    },
+    "carriedReceivable": {
+      "$ref": "../defs.schema.json#/$defs/won",
+      "description": "예상 순액이 음수라 채권으로 넘어갈 예상 금액(정수 원, v1.3 R7 — 선택) — PayoutCompleted.carriedReceivable과 같은 정의"
+    },
+    "payable": {
+      "$ref": "../defs.schema.json#/$defs/won",
+      "description": "세전 지급 대상 예상액(정수 원, v1.3 R7 — 선택) — PayoutCompleted.payable과 같은 정의, 포털은 계산하지 않는다"
     }
   }
 }

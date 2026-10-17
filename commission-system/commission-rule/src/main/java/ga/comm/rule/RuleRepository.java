@@ -16,6 +16,7 @@ import ga.comm.rule.model.OrgOverrideRate;
 import ga.comm.rule.model.PayoutRateRule;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -34,6 +35,12 @@ public interface RuleRepository {
 
     Optional<CommRateRule> findRate(Direction direction, InsurerCode insurerCd, ProductKey productKey,
                                     CommTypeCode commType, Integer installmentNo, LocalDate baseDate);
+
+    /**
+     * 기준일에 그 상품·유형의 유효(ACTIVE) 요율이 있는 보험사(회차 무관, 코드 오름차순·중복 없음) — 시뮬레이션 요청에 보험사가 없을 때
+     * 하나뿐이면 그것으로 정한다(E2 ②, 포털 계약 v1.3 R1 — 여럿이면 {@code INSURER_AMBIGUOUS}).
+     */
+    List<InsurerCode> insurersWithRate(Direction direction, ProductKey productKey, CommTypeCode commType, LocalDate baseDate);
 
     Optional<CommTypeAttr> findCommTypeAttr(CommTypeCode commType, LocalDate baseDate);
 

@@ -23,14 +23,21 @@
       "$ref": "../defs.schema.json#/$defs/id"
     },
     "amount": {
-      "$ref": "../defs.schema.json#/$defs/won"
+      "$ref": "../defs.schema.json#/$defs/nonNegativeWon",
+      "description": "채권 원금(0 이상 — v1.2)"
     },
     "remaining": {
-      "$ref": "../defs.schema.json#/$defs/won"
+      "$ref": "../defs.schema.json#/$defs/nonNegativeWon",
+      "description": "미상계 잔액(0 이상 — v1.2)"
     },
     "status": {
-      "type": "string",
-      "minLength": 1
+      "description": "엔진 어휘(v1.2 — 닫힌 열거, 정본은 엔진 `ReceivableStatus`): OPEN 미상계 잔액 있음, OFFSET 일부 상계, CLOSED 전액 상계, WRITTEN_OFF 대손",
+      "enum": [
+        "OPEN",
+        "OFFSET",
+        "CLOSED",
+        "WRITTEN_OFF"
+      ]
     }
   }
 }

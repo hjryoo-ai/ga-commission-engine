@@ -36,6 +36,7 @@
 | commission-infra | Flyway 스키마(V1~V11 공통 + Oracle 전용 V100/V101/V102), MyBatis Oracle 어댑터(트랜잭션 Store 9종 + 룰·시책 조회/승인/설계사 디렉토리 + 마감 리포트), 한도 원장 SELECT FOR UPDATE 직렬화 + posting_seq 락 하 채번, 요율 승인 동시성 러너(인덱스 위반 → 재시도/거부, §6.6) + 시책 ACTIVE 유니크 인덱스 `ux_incentive_active`(V102, 위반 → 409 명시 번역, 러너는 이연), 트리밍 감사 이력(COMM_RATE·INCENTIVE_CHANGE_HIST), 마감 완결성 리포트(요율·시책 겹침), OraclePersistence(트랜잭션 경계 §4.2 [3.5]~[5.5]) |
 | commission-batch | Spring Batch 5 잡 배선 — 월마감/지급 런/분급 도래/재계산 4종. JobInstance 기반 요청 dedup, 항목 단위 트랜잭션(계산·지급 잡이 한도 락을 청크 전체에 걸쳐 잡지 않도록 Resourceless 스텝 TM + 반복당 업무 트랜잭션), 실패 격리(RuntimeException=격리·Error=전체 중단), BATCH_* 메타테이블 Flyway(V101) |
 | commission-app | 실행 가능 `@SpringBootApplication`(Phase 16) — 스토어·서비스·배치·REST 전 빈 명시 배선(스테레오타입 없는 코드를 @Bean으로), Spring Security 역할(ADMIN/OPERATOR/VIEWER)·principal 실승인자, 구성 외부화(비밀 0·Oracle 프로파일·Flyway validate-only), 배치 자동실행 금지+보호 엔드포인트, Actuator health/readiness, 기동 스모크 E2E(실 Oracle) |
+| commission-localstack | (E2 ⑤, 운영 jar 밖) 로컬 스택 시나리오 실행기 — 앱 조립 그대로 + 단계 시계·순차 eventId로 A-1 두 번째 판(계산 → 마감 잡 → 지급 런 잡 → 해약 → 잠정 명세 잡)을 실제 Oracle에 돌린다. 피드 대조 `verifyFeed`. 아래 "로컬 실행" |
 
 ## 실행 (운영 조립, Phase 16)
 
@@ -50,6 +51,19 @@ DB_URL=jdbc:oracle:thin:@//host:1521/svc DB_USERNAME=... DB_PASSWORD=... \
 - **배치**: 웹 기동 시 잡 자동실행 안 함. `POST /api/batch/{job}/run`(OPERATOR/ADMIN, 명시 파라미터)로만 기동. 잡: `monthCloseJob`/`payoutRunJob`/`deferralReleaseJob`/`recalcJob`.
 - **승인**: `POST /api/rates/{id}/approve`(ADMIN) — 실승인자는 인증 주체(principal), 요청 본문 아님.
 - 시스템 밖 잔여(운영 시드·INBOUND 증설·섀도 병행·SSO 등)는 설계서 §12 운영 전환 체크리스트.
+
+## 로컬 실행 (E2 ⑤ — 한 명령, 엔진 + A-1 피드)
+
+```bash
+localstack/up.sh          # 새 Oracle Free 컨테이너(digest 고정) → Flyway·시드·A-1 시나리오 → 엔진 앱 :8080 (약 40초, 이미지가 있을 때)
+localstack/up.sh verify   # GET /internal/v1/events?afterSeq=0 … 끝까지 = commission-outbox/src/test/resources/outbox-golden/a1_portal_150000_e2.jsonl (바이트)
+localstack/up.sh down     # 앱 종료 + 컨테이너·볼륨 제거
+```
+- 필요한 것: Docker(compose v2), JDK 21, `openssl`, `curl`. 포트는 `ORACLE_PORT`(기본 1521)·`APP_PORT`(기본 8080)로 바꾼다.
+- **비밀**: 서비스 토큰과 DB 암호는 `up.sh`가 매번 무작위로 만들어 `localstack/.state/`(권한 700, git 제외)에만 쓴다 — 토큰 파일 `localstack/.state/engine-token`(권한 600). 앱에는 토큰의 SHA-256만 `ENGINE_SERVICE_TOKEN_SHA256`으로 넘기고, 스크립트는 토큰·암호를 출력하지 않는다. 포털 `e2e/engine-feed/`는 이 토큰 파일을 읽는다.
+- 테넌트 `GA01`, 기본 프로파일(prod 아님 — Flyway migrate, placeholder 유지 판정 허용). 이미지 참조는 `gradle/libs.versions.toml`의 `oracle-free-image` 한 곳(Testcontainers IT 둘과 같은 값).
+- 시드 `localstack/seed/a1.sql` = 시험 픽스처 `RuleFixtures.standardRules()` + `CalcTestHarness.standardDirectory()`(허구 데이터). 일치는 `LocalStackSeedIT`(조회 격자)와 CI 잡 `로컬 스택(A-1 피드)`(피드 바이트)가 증명한다.
+- 잠정 명세는 엔진에 스케줄러가 없으므로 운영에서는 외부 cron이 야간 1회 `POST /api/batch/statementEstimateJob/run`(파라미터 `request_id`, `close_ym` 선택)을 부른다(설계서 §6.8).
 
 ## 핵심 규약 (전 모듈 공통)
 

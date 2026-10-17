@@ -50,7 +50,8 @@ class BootSmokeIT {
 
     @Container
     static OracleContainer oracle =
-            new OracleContainer(DockerImageName.parse("gvenzl/oracle-free:23-slim-faststart"));
+            new OracleContainer(DockerImageName.parse(java.util.Objects.requireNonNull(System.getProperty("engine.oracleImage"),
+                    "engine.oracleImage(Gradle이 gradle/libs.versions.toml의 oracle-free-image로 준다)")));
 
     @DynamicPropertySource
     static void datasource(DynamicPropertyRegistry registry) {

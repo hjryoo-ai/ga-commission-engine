@@ -3,6 +3,7 @@ package ga.comm.outbox.contract;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLParser;
 import com.networknt.schema.JsonSchema;
 import com.networknt.schema.JsonSchemaFactory;
 import com.networknt.schema.SchemaLocation;
@@ -40,7 +41,12 @@ public final class PortalContract {
     private static final String META = "https://json-schema.org/";
 
     private static final JsonMapper JSON = JsonMapper.builder().build();
-    private static final YAMLMapper YAML = new YAMLMapper();
+    /**
+     * YAML 1.2 core 스키마의 불리언(true/false만) — OpenAPI 3.1은 YAML 1.2를 권장한다. 기본 YAML 1.1 해석은 {@code yes}/{@code no}/{@code on}/
+     * {@code off}를 불리언으로 읽어 {@code fyCommissionByInstallment}의 {@code required: [no, amount]}가 {@code [false, amount]}가 된다(E2 ②에서 발견 —
+     * 그 전에는 이 스키마를 검증에 쓰지 않았다).
+     */
+    private static final YAMLMapper YAML = YAMLMapper.builder().enable(YAMLParser.Feature.PARSE_BOOLEAN_LIKE_WORDS_AS_STRINGS).build();
     private static final PortalContract INSTANCE = new PortalContract();
 
     /** 저장소 사본에서 풀린 스키마 문서 수(시험이 0이 아님을 본다). */
@@ -110,13 +116,59 @@ public final class PortalContract {
         }
     }
 
-    /** 포털 샘플 17개(부록 A-1 seq 1~13 + 4) — 파일 이름 순. */
+    /**
+     * 포털 샘플 17개의 {@code events/v1/samples/} 기준 상대 경로 — 포털 계약 v1.2부터 디렉터리를 포함한다({@code a1/}·{@code contract-only/}·
+     * {@code standalone/}). 파일 이름(= seq) 순.
+     */
     public static List<String> sampleNames() {
         String text = new String(read(PORTAL_COPY + "UPSTREAM"), StandardCharsets.UTF_8);
         return text.lines().skip(1).map(String::trim)
                 .filter(l -> l.startsWith("events/v1/samples/"))
                 .map(l -> l.substring("events/v1/samples/".length()))
-                .sorted().toList();
+                .sorted(java.util.Comparator.comparing(PortalContract::fileName)).toList();
+    }
+
+    /** 샘플 이벤트 하나 — {@code id}는 파일 상대 경로(JSONL이면 {@code #줄번호}를 붙인다). */
+    public record Sample(String id, JsonNode doc) {
+    }
+
+    /**
+     * 샘플 이벤트 전부 — 파일 이름 순, JSONL(포털 계약 v1.3 {@code a1/a1_portal_150000.jsonl} — 엔진 E2 ⓪a 바이트)은 줄마다 하나. 포털 v1.3 기준
+     * 17건(a1 10 + contract-only 3 + standalone 4), 13종.
+     */
+    public static List<Sample> sampleEvents() {
+        List<Sample> out = new java.util.ArrayList<>();
+        for (String name : sampleNames()) {
+            if (name.endsWith(".jsonl")) {
+                String text = new String(read(PORTAL_COPY + "events/v1/samples/" + name), StandardCharsets.UTF_8);
+                List<String> lines = text.lines().filter(l -> !l.isBlank()).toList();
+                for (int i = 0; i < lines.size(); i++) {
+                    try {
+                        out.add(new Sample(name + "#" + (i + 1), JSON.readTree(lines.get(i))));
+                    } catch (IOException e) {
+                        throw new UncheckedIOException(e);
+                    }
+                }
+            } else {
+                out.add(new Sample(name, portalFile("events/v1/samples/" + name)));
+            }
+        }
+        return out;
+    }
+
+    /** 원문 바이트(포털 사본) — A-1 바이트 대조용. */
+    public static byte[] portalBytes(String path) {
+        return read(PORTAL_COPY + path);
+    }
+
+    /** 파일 이름({@code 02-CommissionCalculated.json})의 샘플 상대 경로(어느 디렉터리에 있든). */
+    public static String samplePath(String fileName) {
+        return sampleNames().stream().filter(n -> fileName(n).equals(fileName)).findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("포털 샘플 없음: " + fileName));
+    }
+
+    private static String fileName(String relative) {
+        return relative.substring(relative.lastIndexOf('/') + 1);
     }
 
     private static byte[] read(String resource) {

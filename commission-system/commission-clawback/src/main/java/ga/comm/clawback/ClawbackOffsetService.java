@@ -3,6 +3,7 @@ package ga.comm.clawback;
 import ga.comm.domain.id.AgentId;
 import ga.comm.domain.money.Money;
 
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -42,20 +43,37 @@ public class ClawbackOffsetService {
      * @return 총 상계액 (지급액에서 차감할 금액)
      */
     public Money consume(AgentId agentId, Money availablePayment, long payingCalcId) {
+        return offsetLoop(store.findOffsettable(agentId), availablePayment, (receivable, applied) -> {
+            receivable.offset(applied);
+            store.save(receivable);
+            store.recordOffset(receivable.receivableId(), payingCalcId, applied);
+        });
+    }
+
+    /**
+     * 상계 미리보기(E2 P2 — 잠정 명세) — {@link #consume}과 <b>같은 반복</b>을 쓰기 없이 돈다: 채권 상태도 저장소도 바꾸지 않는다. 입력은
+     * {@code findOffsettable}의 결과(오래된 것부터)이고, 반환은 {@code consume}이 같은 상태에서 돌려줄 총 상계액이다.
+     */
+    public static Money previewConsume(List<ClawbackReceivable> offsettable, Money availablePayment) {
+        return offsetLoop(offsettable, availablePayment, (receivable, applied) -> {
+        });
+    }
+
+    /** 상계의 한 반복(쓰기 쪽·미리보기 쪽 공용) — 채권마다 {@link ClawbackReceivable#offsetAmount}만큼, 가용액이 남는 동안. */
+    private static Money offsetLoop(List<ClawbackReceivable> offsettable, Money availablePayment,
+                                    java.util.function.BiConsumer<ClawbackReceivable, Money> apply) {
         if (!availablePayment.isPositive()) {
             return Money.ZERO;
         }
         Money left = availablePayment;
         Money totalOffset = Money.ZERO;
-
-        for (ClawbackReceivable receivable : store.findOffsettable(agentId)) {
+        for (ClawbackReceivable receivable : offsettable) {
             if (!left.isPositive()) {
                 break;
             }
-            Money applied = receivable.offset(left);
+            Money applied = receivable.offsetAmount(left);
             if (applied.isPositive()) {
-                store.save(receivable);
-                store.recordOffset(receivable.receivableId(), payingCalcId, applied);
+                apply.accept(receivable, applied);
                 left = left.minus(applied);
                 totalOffset = totalOffset.plus(applied);
             }

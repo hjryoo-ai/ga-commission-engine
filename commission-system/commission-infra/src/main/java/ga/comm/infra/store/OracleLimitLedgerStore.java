@@ -41,6 +41,12 @@ public class OracleLimitLedgerStore implements LimitLedgerStore {
         return Optional.ofNullable(row).map(this::rehydrate);
     }
 
+    /** 잠그지 않는 읽기(E2 ②) — {@code peekByKey}(FOR UPDATE 없음). */
+    @Override
+    public Optional<LimitLedger> peek(PolicyNo policyNo, AgentId agentId) {
+        return Optional.ofNullable(mapper.peekByKey(policyNo.value(), agentId.value())).map(this::rehydrate);
+    }
+
     @Override
     public LimitLedger getOrCreate(PolicyNo policyNo, AgentId agentId, LocalDate contractDate,
                                    Money monthlyPremium, LimitRule rule) {

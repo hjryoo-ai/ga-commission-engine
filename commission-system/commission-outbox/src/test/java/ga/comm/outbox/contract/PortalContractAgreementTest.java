@@ -12,7 +12,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
@@ -45,8 +44,16 @@ class PortalContractAgreementTest {
             Map.entry("ClawbackReceivableUpdated", "CLAWBACK_RECEIVABLE"), Map.entry("PolicyEventObserved", "POLICY"),
             Map.entry("StatementEstimated", "STATEMENT"), Map.entry("StatementConfirmed", "STATEMENT"), Map.entry("PayoutCompleted", "PAYOUT"));
 
-    private static ObjectNode sample(String name) {
-        return (ObjectNode) PortalContract.portalFile("events/v1/samples/" + name).deepCopy();
+    /** 샘플 이벤트 하나(id = 파일 상대 경로, JSONL이면 {@code #줄번호}) — 포털 v1.3부터 A-1은 엔진 스트림 JSONL이다. */
+    private static ObjectNode sample(String id) {
+        return (ObjectNode) PortalContract.sampleEvents().stream().filter(x -> x.id().equals(id)).findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("샘플 없음: " + id)).doc().deepCopy();
+    }
+
+    /** 그 타입의 첫 샘플(파일 이름 순). */
+    private static ObjectNode sampleOfType(String type) {
+        return (ObjectNode) PortalContract.sampleEvents().stream().filter(x -> x.doc().path("type").asText().equals(type)).findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("샘플 없음: " + type)).doc().deepCopy();
     }
 
     private static JsonNode payloadSchema(String type) {
@@ -54,16 +61,16 @@ class PortalContractAgreementTest {
     }
 
     static Stream<Arguments> samples() {
-        return PortalContract.sampleNames().stream().map(n -> Arguments.argumentSet(n, n));
+        return PortalContract.sampleEvents().stream().map(x -> Arguments.argumentSet(x.id(), x.id()));
     }
 
     // ------------------------------------------------------------------ 샘플
 
     @Test
     void samplesCoverThe13Types() {
-        List<String> names = PortalContract.sampleNames();
-        assertThat(names).hasSize(17);
-        assertThat(names.stream().map(n -> sample(n).path("type").asText()).distinct()).containsExactlyInAnyOrderElementsOf(EVENT_TYPES);
+        List<PortalContract.Sample> all = PortalContract.sampleEvents();
+        assertThat(all).hasSize(17);
+        assertThat(all.stream().map(x -> x.doc().path("type").asText()).distinct()).containsExactlyInAnyOrderElementsOf(EVENT_TYPES);
     }
 
     @ParameterizedTest
@@ -124,7 +131,8 @@ class PortalContractAgreementTest {
     static Stream<Arguments> coreViolations() {
         return Stream.of(
                 Arguments.argumentSet("eventId not a uuid", (Consumer<ObjectNode>) s -> s.put("eventId", "not-a-uuid")),
-                Arguments.argumentSet("eventId upper case", (Consumer<ObjectNode>) s -> s.put("eventId", s.path("eventId").asText().toUpperCase(Locale.ROOT))),
+                // 엔진 eventId(00000000-…-00000000000n)에는 바꿀 영문자가 없어 대문자화가 아무것도 바꾸지 않는다 — 대문자 16진이 든 UUID를 직접 넣는다
+                Arguments.argumentSet("eventId upper case", (Consumer<ObjectNode>) s -> s.put("eventId", "5EED0000-0000-4000-8000-00000000000A")),
                 Arguments.argumentSet("seq 0", (Consumer<ObjectNode>) s -> s.put("seq", 0)),
                 Arguments.argumentSet("seq string", (Consumer<ObjectNode>) s -> s.put("seq", "1")),
                 Arguments.argumentSet("version 0", (Consumer<ObjectNode>) s -> s.put("version", 0)),
@@ -140,7 +148,7 @@ class PortalContractAgreementTest {
     @ParameterizedTest
     @MethodSource("coreViolations")
     void everythingTheCoreRejectsThePortalEnvelopeRejects(Consumer<ObjectNode> mutation) {
-        ObjectNode doc = sample("02-CommissionCalculated.json");
+        ObjectNode doc = sampleOfType("CommissionCalculated");
         mutation.accept(doc);
         assertThat(C.validateCore(doc)).as("core").isNotEmpty();
         assertThat(C.validateEnvelope(doc)).as("portal envelope").isNotEmpty();
@@ -151,7 +159,7 @@ class PortalContractAgreementTest {
     @Test
     void aPayloadOfAnotherTypeIsRejected() {
         Map<String, ObjectNode> byType = new TreeMap<>();
-        PortalContract.sampleNames().forEach(n -> byType.putIfAbsent(sample(n).path("type").asText(), sample(n)));
+        PortalContract.sampleEvents().forEach(x -> byType.putIfAbsent(x.doc().path("type").asText(), (ObjectNode) x.doc().deepCopy()));
         for (int i = 0; i < EVENT_TYPES.size(); i++) {
             ObjectNode doc = byType.get(EVENT_TYPES.get(i)).deepCopy();
             doc.set("payload", byType.get(EVENT_TYPES.get((i + 1) % EVENT_TYPES.size())).path("payload").deepCopy());
@@ -174,11 +182,11 @@ class PortalContractAgreementTest {
 
     @Test
     void unknownTypeOrVersionIsRejectedEvenWhenTheCoreAcceptsIt() {
-        ObjectNode unknown = sample("09-PayoutCompleted.json");
+        ObjectNode unknown = sampleOfType("PayoutCompleted");
         unknown.put("type", "BonusGranted");
         assertThat(C.validateCore(unknown)).isEmpty();
         assertThat(C.validateEnvelope(unknown)).isNotEmpty();
-        ObjectNode v2 = sample("09-PayoutCompleted.json");
+        ObjectNode v2 = sampleOfType("PayoutCompleted");
         v2.put("version", 2);
         assertThat(C.validateCore(v2)).isEmpty();
         assertThat(C.validateEnvelope(v2)).isNotEmpty();
@@ -186,8 +194,8 @@ class PortalContractAgreementTest {
 
     @Test
     void statementAndPayoutAggregateIdsAreAgentColonYm() {
-        for (String file : List.of("07-StatementEstimated.json", "08-StatementConfirmed.json", "09-PayoutCompleted.json")) {
-            ObjectNode doc = sample(file);
+        for (String file : List.of("StatementEstimated", "StatementConfirmed", "PayoutCompleted")) {
+            ObjectNode doc = sampleOfType(file);
             ((ObjectNode) doc.path("aggregate")).put("id", "A0001");
             assertThat(C.validateEnvelope(doc)).as(file).isNotEmpty();
             ((ObjectNode) doc.path("aggregate")).put("id", "A0001:202613");
@@ -197,7 +205,7 @@ class PortalContractAgreementTest {
 
     @Test
     void unknownFieldsAreAllowedInTheEnvelopeAndThePayload() {
-        ObjectNode doc = sample("02-CommissionCalculated.json");
+        ObjectNode doc = sampleOfType("CommissionCalculated");
         doc.put("traceId", "abc");
         ((ObjectNode) doc.path("payload")).put("futureField", 1);
         ((ObjectNode) doc.path("payload").path("basis")).put("tier", "B");
@@ -206,18 +214,18 @@ class PortalContractAgreementTest {
 
     @Test
     void ratesAndMultiplesAreDecimalStringsNotNumbers() {
-        ObjectNode calc = sample("02-CommissionCalculated.json");
+        ObjectNode calc = sampleOfType("CommissionCalculated");
         ((ObjectNode) calc.path("payload").path("basis")).put("rate", 9.333333);
         assertThat(C.validateEnvelope(calc)).as("basis.rate as a JSON number").isNotEmpty();
-        ObjectNode calc2 = sample("02-CommissionCalculated.json");
+        ObjectNode calc2 = sampleOfType("CommissionCalculated");
         ((ObjectNode) calc2.path("payload").path("basis")).put("payoutRate", "0.1234567");
         assertThat(C.validateEnvelope(calc2)).as("more than 6 decimals").isNotEmpty();
-        ObjectNode opened = sample("01-LimitLedgerOpened.json");
+        ObjectNode opened = sampleOfType("LimitLedgerOpened");
         ((ObjectNode) opened.path("payload")).put("limitMultiple", 12);
         assertThat(C.validateEnvelope(opened)).as("limitMultiple as a JSON number").isNotEmpty();
         ((ObjectNode) opened.path("payload")).put("limitMultiple", "012");
         assertThat(C.validateEnvelope(opened)).as("leading zero").isNotEmpty();
-        ObjectNode calc3 = sample("02-CommissionCalculated.json");
+        ObjectNode calc3 = sampleOfType("CommissionCalculated");
         ((ObjectNode) calc3.path("payload")).put("amount", 2_800_000.5);
         assertThat(C.validateEnvelope(calc3)).as("non-integer amount").isNotEmpty();
     }
@@ -226,31 +234,34 @@ class PortalContractAgreementTest {
 
     static Stream<Arguments> optional() {
         return Stream.of(
-                Arguments.argumentSet("K1", "02-CommissionCalculated.json", List.of("policySummary"), List.of("productName", "insuredMasked")),
-                Arguments.argumentSet("K2", "02-CommissionCalculated.json", List.of("basis"), List.of("rate", "payoutRate", "installmentNo")),
-                Arguments.argumentSet("K3", "16-AgentSnapshot.json", List.<String>of(), List.of("grade", "role")),
-                Arguments.argumentSet("K4", "08-StatementConfirmed.json", List.<String>of(), List.of("clawbackOffset", "withholdingTax", "net")),
-                Arguments.argumentSet("L1", "17-LimitLedgerRebased.json", List.<String>of(), List.of("postingSeq")));
+                Arguments.argumentSet("K1", "CommissionCalculated", List.of("policySummary"), List.of("productName", "insuredMasked")),
+                Arguments.argumentSet("K2", "CommissionCalculated", List.of("basis"), List.of("rate", "payoutRate", "installmentNo")),
+                Arguments.argumentSet("K3", "AgentSnapshot", List.<String>of(), List.of("grade", "role")),
+                Arguments.argumentSet("K4", "StatementConfirmed", List.<String>of(), List.of("clawbackOffset", "withholdingTax", "net")),
+                Arguments.argumentSet("L1", "LimitLedgerRebased", List.<String>of(), List.of("postingSeq")));
     }
 
+    /**
+     * 선택 필드: 샘플이 갖고 있으면 빼 보고 통과, 없으면 그 샘플이 그것 없이 이미 통과한다 — 어느 쪽이든 선택임의 증명이다. 포털 v1.3의 A-1은
+     * 엔진이 실제로 낸 바이트라 엔진에 없는 필드(K1·K2 일부)는 처음부터 없고, v1.2(M4)는 16의 role·08의 세액·순액을 뺐다.
+     */
     @ParameterizedTest
     @MethodSource("optional")
-    void fieldsTheEngineDoesNotHaveAreOptional(String file, List<String> objectPath, List<String> fields) {
-        ObjectNode doc = sample(file);
+    void fieldsTheEngineDoesNotHaveAreOptional(String type, List<String> objectPath, List<String> fields) {
+        ObjectNode doc = sampleOfType(type);
         ObjectNode target = (ObjectNode) doc.path("payload");
         for (String step : objectPath) {
             target = (ObjectNode) target.path(step);
         }
         for (String f : fields) {
-            assertThat(target.has(f)).isTrue();
-            target.remove(f);
+            target.remove(f);   // 있으면 빼고, 없으면 이미 없는 채로 — 남은 문서가 통과해야 한다
         }
         assertThat(C.validateEnvelope(doc)).isEmpty();
     }
 
     @Test
     void payoutCompletedSettledAmountsAreOptionalIntegersAndRebasedPostingSeqStaysPositive() {
-        ObjectNode doc = sample("09-PayoutCompleted.json");
+        ObjectNode doc = sampleOfType("PayoutCompleted");
         ((ObjectNode) doc.path("payload")).put("runSeq", 1).put("gross", 3_600_000).put("clawbackOffset", 0).put("receivableOffset", 0)
                 .put("carriedReceivable", 0).put("payable", 3_600_000).put("withholdingTax", 118_800).put("net", 3_481_200);
         assertThat(C.validateEnvelope(doc)).isEmpty();
@@ -260,7 +271,7 @@ class PortalContractAgreementTest {
         ObjectNode run0 = doc.deepCopy();
         ((ObjectNode) run0.path("payload")).put("runSeq", 0);
         assertThat(C.validateEnvelope(run0)).isNotEmpty();
-        ObjectNode rebased = sample("17-LimitLedgerRebased.json");
+        ObjectNode rebased = sampleOfType("LimitLedgerRebased");
         ((ObjectNode) rebased.path("payload")).put("postingSeq", 0);
         assertThat(C.validateEnvelope(rebased)).isNotEmpty();
     }
@@ -271,7 +282,7 @@ class PortalContractAgreementTest {
     void feedResponseNeedsTenantIdAndIntegerCursors() {
         ObjectNode response = JsonNodeFactory.instance.objectNode();
         ArrayNode events = response.putArray("events");
-        PortalContract.sampleNames().stream().limit(9).forEach(n -> events.add(sample(n)));
+        PortalContract.sampleEvents().stream().limit(9).forEach(x -> events.add(x.doc().deepCopy()));
         response.put("tenantId", "GA01").put("nextSeq", 9).put("headSeq", 13).put("schemaVersion", 1);
         assertThat(C.validateApiSchema("FeedResponse", response)).isEmpty();
         ObjectNode noTenant = response.deepCopy();

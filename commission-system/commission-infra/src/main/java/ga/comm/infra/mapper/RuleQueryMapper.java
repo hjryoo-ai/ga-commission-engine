@@ -106,6 +106,20 @@ public interface RuleQueryMapper {
                                       @Param("installmentNo") Integer installmentNo,
                                       @Param("baseDate") LocalDate baseDate);
 
+    /** 기준일에 그 상품·유형의 ACTIVE 요율이 있는 보험사(회차 무관, E2 ② — 포털 계약 v1.3 R1). */
+    @Select("""
+            SELECT DISTINCT insurer_cd
+              FROM COMM_RATE
+             WHERE status = 'ACTIVE'
+               AND direction = #{direction} AND product_key = #{productKey} AND comm_type = #{commType}
+               AND apply_from <= #{baseDate} AND apply_to >= #{baseDate}
+             ORDER BY insurer_cd
+            """)
+    List<String> findInsurersWithRate(@Param("direction") String direction,
+                                      @Param("productKey") String productKey,
+                                      @Param("commType") String commType,
+                                      @Param("baseDate") LocalDate baseDate);
+
     @Select("""
             SELECT comm_type, limit_included, rounding_policy, clawback_target, apply_from, apply_to
               FROM COMM_TYPE_MST

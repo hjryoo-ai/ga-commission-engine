@@ -63,6 +63,12 @@ val integrationTest = tasks.register<Test>("integrationTest") {
     testClassesDirs = sourceSets["integrationTest"].output.classesDirs
     classpath = sourceSets["integrationTest"].runtimeClasspath
     shouldRunAfter(tasks.test)
+    // Oracle 이미지(digest 고정)는 카탈로그 한 곳(E2 P7). 로컬 스택 시드(LocalStackSeedIT)는 이 소스셋 밖 파일이라 입력으로 선언한다.
+    systemProperty("engine.oracleImage", libs.versions.oracle.free.image.get())
+    inputs.property("oracleImage", libs.versions.oracle.free.image.get())
+    val seed = rootProject.file("localstack/seed/a1.sql")
+    inputs.file(seed).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("localstackSeed")
+    systemProperty("engine.localstackSeed", seed.absolutePath)
 }
 
 tasks.check {
