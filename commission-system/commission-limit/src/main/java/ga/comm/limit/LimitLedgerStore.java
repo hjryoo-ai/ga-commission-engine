@@ -22,6 +22,15 @@ public interface LimitLedgerStore {
     LimitLedger getOrCreate(PolicyNo policyNo, AgentId agentId, LocalDate contractDate,
                             Money monthlyPremium, LimitRule rule);
 
+    /**
+     * 잠그지 않는 읽기(E2 ② — 시뮬레이션 오버레이, 계획 P3·C3). {@link #find}·{@link #getOrCreate}는 Oracle에서 {@code SELECT … FOR UPDATE}로
+     * 원장을 잠그지만 이것은 잠그지 않는다. 기본 구현은 {@link #find}(잠금이 없는 인메모리용) — Oracle 구현과 데코레이터는 재정의한다.
+     * 돌려받은 원장은 호출자가 고치면 안 된다(인메모리는 같은 인스턴스일 수 있다 — 오버레이는 사본을 만든다).
+     */
+    default Optional<LimitLedger> peek(PolicyNo policyNo, AgentId agentId) {
+        return find(policyNo, agentId);
+    }
+
     /** 전기/재산정 결과 반영. 인메모리 구현은 no-op일 수 있다. */
     void save(LimitLedger ledger);
 

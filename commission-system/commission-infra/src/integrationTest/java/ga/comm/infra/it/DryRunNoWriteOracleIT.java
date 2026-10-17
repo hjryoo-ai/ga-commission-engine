@@ -16,8 +16,8 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * E2 C1 — 잠정 명세(①)는 업무 표에 아무것도 쓰지 않는다. 실제 Oracle에서 업무 표 12개의 전 행 해시가 전후 같고, 아웃박스는 기존 행이 전부
- * 바이트로 같으며(부여는 시작 전에 끝냈다 — P13) 새 행은 {@code StatementEstimated}뿐이다. 표별 해시는 보고서용으로
+ * E2 C1 — 잠정 명세(①)·시뮬레이션(②)·명세 조회(③)는 업무 표에 아무것도 쓰지 않는다. 실제 Oracle에서 업무 표 12개의 전 행 해시가 전후 같고, 아웃박스는 기존 행이 전부
+ * 바이트로 같으며(부여는 시작 전에 끝냈다 — P13) 새 행은 ①의 {@code StatementEstimated}뿐이고 ②③은 0행이다. 표별 해시는 보고서용으로
  * {@code build/reports/dry-run/c1-hashes.md}에 쓴다.
  */
 class DryRunNoWriteOracleIT {
@@ -58,5 +58,25 @@ class DryRunNoWriteOracleIT {
         Path out = Path.of(System.getProperty("user.dir"), "build", "reports", "dry-run", "c1-estimate.md");
         Files.createDirectories(out.getParent());
         Files.writeString(out, md, StandardCharsets.UTF_8);
+    }
+
+    @Test
+    void 시뮬레이션_명세조회_전후_업무표가_같고_아웃박스는_0행이다() throws Exception {
+        Map<String, String> before = DryRunScenario.hashes(jdbc);
+        List<String> outboxBefore = DryRunScenario.rows(jdbc, "SELECT * FROM OUTBOX_EVENT");
+
+        List<Object> results = p.inTx(() -> DryRunScenario.simulateAll(DryRunScenario.simulator(e)));
+        var estimate = p.inTx(() -> DryRunScenario.statementQuery(p, e).estimate("A-1001", DryRunScenario.OPEN_MONTH));
+
+        assertThat(DryRunScenario.hashes(jdbc)).as("업무 표 12개 전후 해시").isEqualTo(before);
+        assertThat(DryRunScenario.rows(jdbc, "SELECT * FROM OUTBOX_EVENT")).as("아웃박스 전후 바이트 동일(새 행 0)").isEqualTo(outboxBefore);
+        // 공허하지 않다: 원장이 있는 계약의 해약(환수), 분급 있는 계약의 해약(취소 예정), 신계약(오버레이 원장 개설)
+        var newContract = (ga.comm.settlement.simulation.SimulationModel.NewContractResult) results.get(0);
+        var cancel = (ga.comm.settlement.simulation.SimulationModel.PolicyEventResult) results.get(1);
+        var deferred = (ga.comm.settlement.simulation.SimulationModel.PolicyEventResult) results.get(3);
+        assertThat(newContract.limitAmount()).isEqualTo(3_600_000L);
+        assertThat(cancel.clawbackAmount()).isNegative();
+        assertThat(deferred.cancelledDeferrals()).isNotEmpty();
+        assertThat(estimate.path("net").isNumber()).isTrue();
     }
 }

@@ -92,6 +92,26 @@ public abstract class RuleRepositoryContract {
                 CommTypeCode.FY_COMM, 3, base))).isEmpty();
     }
 
+    /** E2 ② — 보험사 없는 신계약 시뮬레이션의 보험사 결정(포털 계약 v1.3 R1). 회차 무관·기준일 유효·ACTIVE만, 코드 순, 중복 없음. */
+    @Test
+    void 기준일에_유효_요율이_있는_보험사는_회차_무관_ACTIVE만_코드_순이다() {
+        InsurerCode other = new InsurerCode("KBLIFE");
+        EffectivePeriod from2026 = EffectivePeriod.from(LocalDate.of(2026, 1, 1));
+        seeder().rate(rate(9041, null, "7.0", from2026, RateStatus.ACTIVE));
+        seeder().rate(rate(9042, 2, "0.15", from2026, RateStatus.ACTIVE));
+        seeder().rate(new CommRateRule(9043, Direction.OUTBOUND, other, PRODUCT, CommTypeCode.FY_COMM, null, Rate.of("6.0"),
+                EffectivePeriod.from(SWITCH_DATE), 1, RateStatus.ACTIVE));
+        seeder().rate(new CommRateRule(9044, Direction.OUTBOUND, new InsurerCode("HANWHA"), PRODUCT, CommTypeCode.FY_COMM, null,
+                Rate.of("6.5"), from2026, 1, RateStatus.DRAFT));
+
+        assertThat(inTx(() -> repository().insurersWithRate(Direction.OUTBOUND, PRODUCT, CommTypeCode.FY_COMM, LocalDate.of(2026, 8, 1))))
+                .containsExactly(INSURER);
+        assertThat(inTx(() -> repository().insurersWithRate(Direction.OUTBOUND, PRODUCT, CommTypeCode.FY_COMM, SWITCH_DATE)))
+                .containsExactly(other, INSURER);
+        assertThat(inTx(() -> repository().insurersWithRate(Direction.OUTBOUND, new ProductKey("NONE"), CommTypeCode.FY_COMM, SWITCH_DATE)))
+                .isEmpty();
+    }
+
     @Test
     void ACTIVE가_아닌_버전은_조회되지_않는다() {
         seeder().rate(rate(9021, null, "7.0", EffectivePeriod.from(LocalDate.of(2026, 1, 1)), RateStatus.DRAFT));

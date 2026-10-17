@@ -68,6 +68,54 @@ class AssemblyParityTest {
                 .isEqualTo(GoldenEngine.fullAssembly().calcStoreOuter());
     }
 
+    /** E2 ② — 시뮬레이션 dry-run 파이프라인의 Step 클래스·순서와 저장 후 훅 = 운영 계산기(CalcSteps 한 함수 — Step 하나라도 빠지면 실패, 주입 S12). */
+    @Test
+    void 시뮬레이션_파이프라인의_Step과_훅은_운영_계산기와_같다() {
+        DeferralReleaseService release = new ServiceConfig().deferralReleaseService(scheduleStore, calcStore,
+                new PlaceholderPolicyStatusProvider());
+        CalcPipelineConfig pipeline = new CalcPipelineConfig();
+        RecipientResolver recipients = new RecipientResolver(new InMemoryAgentDirectory(), AffiliationBasis.EVENT_DATE);
+        ga.comm.calc.store.CloseYmResolver resolver = pipeline.closeYmResolver(SettleCloseStore.asProvider(closeStore));
+        CommissionCalculator calculator = pipeline.commissionCalculator(new InMemoryRuleStore(), new InMemoryIncentiveStore(),
+                recipients, new InMemoryPolicyEventStore(), calcStore, ledgerStore, scheduleStore, resolver, release);
+
+        ga.comm.settlement.simulation.SimulationReads reads = new ga.comm.settlement.simulation.SimulationReads(calcStore::findById,
+                calcStore::findByEventId, calcStore::findByPolicyAndRecipient, calcStore::findByCloseYm, ledgerStore::peek,
+                scheduleStore::findDue, scheduleStore::findByPolicyAndAgent, scheduleStore::findBySourceCalcId,
+                new InMemoryPolicyEventStore()::findById, id -> true);
+        ga.comm.settlement.estimate.EstimateReads estimateReads = new OutboxConfig().estimateReads(calcStore, scheduleStore,
+                new PlaceholderPolicyStatusProvider(), new ga.comm.clawback.fixture.InMemoryClawbackReceivableStore(),
+                new ga.comm.settlement.fixture.InMemoryAdjustmentStore(), closeStore);
+        ga.comm.settlement.simulation.DryRunSimulator simulator = new SimulationConfig().dryRunSimulator(new InMemoryRuleStore(),
+                new InMemoryIncentiveStore(), recipients, resolver, new PlaceholderPolicyStatusProvider(), reads, estimateReads,
+                ga.comm.settlement.WithholdingTaxPolicy.STANDARD_3_3, java.time.Clock.systemUTC(),
+                new org.springframework.transaction.support.AbstractPlatformTransactionManager() {
+                    @Override
+                    protected Object doGetTransaction() {
+                        return new Object();
+                    }
+
+                    @Override
+                    protected void doBegin(Object transaction, org.springframework.transaction.TransactionDefinition definition) {
+                    }
+
+                    @Override
+                    protected void doCommit(org.springframework.transaction.support.DefaultTransactionStatus status) {
+                    }
+
+                    @Override
+                    protected void doRollback(org.springframework.transaction.support.DefaultTransactionStatus status) {
+                    }
+                });
+
+        assertThat(simulator.pipelineStepClasses())
+                .isEqualTo(calculator.pipeline().stepClasses())
+                .hasSize(10);
+        assertThat(simulator.listenerClasses())
+                .isEqualTo(calculator.listeners().stream().<Class<?>>map(Object::getClass).toList())
+                .hasSize(4);
+    }
+
     @Test
     void 정정_서비스의_reversal_훅은_골든_조립과_같다() {
         RevisionService revision = new ServiceConfig().revisionService(calcStore, SettleCloseStore.asProvider(closeStore),

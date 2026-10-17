@@ -6,39 +6,22 @@ import ga.comm.calc.CommissionCalculator;
 import ga.comm.calc.StepConfig;
 import ga.comm.calc.recipient.AffiliationBasis;
 import ga.comm.calc.recipient.RecipientResolver;
-import ga.comm.calc.step.BaseCommissionStep;
-import ga.comm.calc.step.IncentiveStep;
-import ga.comm.calc.step.IncentiveV2Step;
-import ga.comm.calc.step.OverrideCommissionStep;
-import ga.comm.calc.step.PayoutRateStep;
 import ga.comm.calc.store.CloseStatusProvider;
 import ga.comm.calc.store.CloseYmResolver;
 import ga.comm.calc.store.CommCalcStore;
 import ga.comm.calc.store.PolicyEventStore;
-import ga.comm.clawback.ClawbackPostProcessor;
-import ga.comm.clawback.ClawbackStep;
-import ga.comm.clawback.ReviveStep;
-import ga.comm.deferral.DeferralCancelListener;
 import ga.comm.deferral.DeferralReleaseService;
-import ga.comm.deferral.DeferralSchedulePoster;
 import ga.comm.deferral.DeferralScheduleStore;
-import ga.comm.deferral.DeferralSplitStep;
 import ga.comm.domain.time.CloseYm;
-import ga.comm.limit.LimitGateStep;
-import ga.comm.limit.LimitLedgerPoster;
-import ga.comm.limit.LimitLedgerService;
 import ga.comm.limit.LimitLedgerStore;
-import ga.comm.limit.PremiumRepriceStep;
 import ga.comm.rule.IncentiveRepository;
 import ga.comm.rule.RuleRepository;
-import ga.comm.rule.incentive.IncentiveConditionEvaluator;
-import ga.comm.rule.model.EffectivePeriod;
 import ga.comm.calc.recipient.AgentDirectory;
+import ga.comm.settlement.CalcSteps;
 import ga.comm.settlement.SettleCloseStore;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -50,8 +33,6 @@ import java.util.List;
  */
 @Configuration(proxyBeanMethods = false)
 public class CalcPipelineConfig {
-
-    private static final LocalDate STEPS_FROM = LocalDate.of(2026, 1, 1);
 
     @Bean
     public CloseStatusProvider closeStatusProvider(SettleCloseStore settleCloseStore) {
@@ -79,26 +60,9 @@ public class CalcPipelineConfig {
                                                      DeferralScheduleStore deferralScheduleStore,
                                                      CloseYmResolver closeYmResolver,
                                                      DeferralReleaseService deferralReleaseService) {
-        EffectivePeriod from = EffectivePeriod.from(STEPS_FROM);
-        List<StepConfig> steps = List.of(
-                new StepConfig(new BaseCommissionStep(), from, 10),
-                new StepConfig(new PayoutRateStep(), from, 20),
-                new StepConfig(new IncentiveStep(), from, 30),                      // V1 (이벤트 속성 시책)
-                new StepConfig(new IncentiveV2Step(incentiveRepository,
-                        new IncentiveConditionEvaluator()), from, 31),             // V2 (INCENTIVE_MST 조건식)
-                new StepConfig(new OverrideCommissionStep(), from, 40),
-                new StepConfig(new ClawbackStep(commCalcStore), from, 45),
-                new StepConfig(new ReviveStep(commCalcStore, ReviveStep.RevivePolicy.REPAY), from, 46),
-                new StepConfig(new LimitGateStep(limitLedgerStore), from, 50),
-                new StepConfig(new DeferralSplitStep(), from, 55),
-                new StepConfig(new PremiumRepriceStep(limitLedgerStore), from, 60));
-
-        List<CalcResultListener> listeners = List.of(
-                new LimitLedgerPoster(limitLedgerStore),
-                new ClawbackPostProcessor(new LimitLedgerService(limitLedgerStore)),
-                new DeferralSchedulePoster(deferralScheduleStore),
-                // 해약·실효·철회 → 미도래 분급 취소(E1 Q3 — E1 이전부터 운영 조립에 빠져 있던 결함, 골든 조립과 같게)
-                new DeferralCancelListener(deferralReleaseService));
+        // Step 목록·저장 후 훅 = CalcSteps(시뮬레이션 dry-run 파이프라인과 같은 함수 — E2 ②)
+        List<StepConfig> steps = CalcSteps.standard(incentiveRepository, commCalcStore, limitLedgerStore);
+        List<CalcResultListener> listeners = CalcSteps.listeners(limitLedgerStore, deferralScheduleStore, deferralReleaseService);
 
         return new CommissionCalculator(ruleRepository, recipientResolver,
                 new CalculationPipeline(steps), policyEventStore, commCalcStore,

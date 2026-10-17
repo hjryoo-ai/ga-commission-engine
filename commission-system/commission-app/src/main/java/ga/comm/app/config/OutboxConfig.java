@@ -81,11 +81,17 @@ public class OutboxConfig {
      * 원천세 정책은 마감 훅·지급 런과 같은 빈(P1·P9).
      */
     @Bean
-    public StatementEstimator statementEstimator(CommCalcStore calcStore, DeferralScheduleStore scheduleStore, PolicyStatusProvider policyStatus,
-                                                 ClawbackReceivableStore receivableStore, AdjustmentService.AdjustmentStore adjustmentStore,
-                                                 SettleCloseStore settleCloseStore, WithholdingTaxPolicy withholdingTaxPolicy) {
-        return new StatementEstimator(new EstimateReads(calcStore::findByCloseYm, calcStore::findById, scheduleStore::findDue, policyStatus,
-                receivableStore::findOffsettable, adjustmentStore::findByCloseYm, settleCloseStore::stateOf), withholdingTaxPolicy);
+    public StatementEstimator statementEstimator(EstimateReads estimateReads, WithholdingTaxPolicy withholdingTaxPolicy) {
+        return new StatementEstimator(estimateReads, withholdingTaxPolicy);
+    }
+
+    /** 잠정 명세 산출기·시뮬레이터(E2 ②의 귀속월 전후 순액)가 함께 쓰는 읽기 함수 묶음. */
+    @Bean
+    public EstimateReads estimateReads(CommCalcStore calcStore, DeferralScheduleStore scheduleStore, PolicyStatusProvider policyStatus,
+                                       ClawbackReceivableStore receivableStore, AdjustmentService.AdjustmentStore adjustmentStore,
+                                       SettleCloseStore settleCloseStore) {
+        return new EstimateReads(calcStore::findByCloseYm, calcStore::findById, scheduleStore::findDue, policyStatus,
+                receivableStore::findOffsettable, adjustmentStore::findByCloseYm, settleCloseStore::stateOf);
     }
 
     @Bean

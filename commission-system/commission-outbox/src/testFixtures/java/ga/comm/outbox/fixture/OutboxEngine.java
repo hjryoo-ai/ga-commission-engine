@@ -40,10 +40,13 @@ import ga.comm.outbox.OutboxStore;
 import ga.comm.outbox.StoredEvent;
 import ga.comm.outbox.publish.OutboxPublisher;
 import ga.comm.outbox.publish.PublishingStores;
+import ga.comm.rule.IncentiveRepository;
 import ga.comm.rule.RuleRepository;
 import ga.comm.rule.model.EffectivePeriod;
 import ga.comm.settlement.AdjustmentService;
 import ga.comm.settlement.estimate.EstimateReads;
+import ga.comm.settlement.simulation.DryRunSimulator;
+import ga.comm.settlement.simulation.SimulationReads;
 import ga.comm.settlement.estimate.StatementEstimator;
 import ga.comm.outbox.publish.EstimatePublisher;
 import ga.comm.deferral.PolicyStatusProvider;
@@ -64,6 +67,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
@@ -96,6 +100,12 @@ public final class OutboxEngine {
     public final StatementEstimator estimator;
     public final EstimatePublisher estimatePublisher;
     private final Clock clock;
+    private final RuleRepository rules;
+    private final RecipientResolver recipients;
+    private final CloseYmResolver resolver;
+    private final PolicyStatusProvider policyStatus;
+    private final WithholdingTaxPolicy taxPolicy;
+    private final EstimateReads estimateReads;
 
     public OutboxEngine(RuleRepository rules, AgentDirectory directory, Raw raw, Clock clock, Supplier<UUID> ids) {
         this.raw = raw;
@@ -127,7 +137,8 @@ public final class OutboxEngine {
                 new ClawbackPostProcessor(new LimitLedgerService(stores.ledgers())),
                 new DeferralSchedulePoster(stores.schedules()),
                 new DeferralCancelListener(releaseService));
-        calculator = new CommissionCalculator(rules, new RecipientResolver(directory, AffiliationBasis.EVENT_DATE),
+        RecipientResolver recipients = new RecipientResolver(directory, AffiliationBasis.EVENT_DATE);
+        calculator = new CommissionCalculator(rules, recipients,
                 new CalculationPipeline(steps), stores.events(), calcs, resolver, listeners);
 
         revision = new RevisionService(calcs, closeStatus,
@@ -142,10 +153,31 @@ public final class OutboxEngine {
         DeferralScheduleStore schedules = stores.schedules();
         ClawbackReceivableStore receivables = stores.receivables();
         AdjustmentService.AdjustmentStore adjustments = stores.adjustments();
-        estimator = new StatementEstimator(new EstimateReads(calcs::findByCloseYm, calcs::findById, schedules::findDue, policyStatus,
-                receivables::findOffsettable, adjustments::findByCloseYm, raw.close()::stateOf), taxPolicy);
+        estimateReads = new EstimateReads(calcs::findByCloseYm, calcs::findById, schedules::findDue, policyStatus,
+                receivables::findOffsettable, adjustments::findByCloseYm, raw.close()::stateOf);
+        estimator = new StatementEstimator(estimateReads, taxPolicy);
         estimatePublisher = new EstimatePublisher(publisher);
         this.clock = clock;
+        this.rules = rules;
+        this.recipients = recipients;
+        this.resolver = resolver;
+        this.policyStatus = policyStatus;
+        this.taxPolicy = taxPolicy;
+    }
+
+    /**
+     * 시뮬레이터(E2 ②) — 앱 조립({@code SimulationConfig})과 같다: 엔진이 쓰는 저장소(가드·발행 데코레이터)의 <b>읽기 메서드 참조</b>만,
+     * 원장은 {@code peek}. 산출기의 읽기 묶음도 같은 것.
+     */
+    public DryRunSimulator simulator(IncentiveRepository incentives, Predicate<String> agentExists) {
+        CommCalcStore c = calcs;
+        LimitLedgerStore l = stores.ledgers();
+        DeferralScheduleStore s = stores.schedules();
+        PolicyEventStore e = stores.events();
+        SimulationReads reads = new SimulationReads(c::findById, c::findByEventId, c::findByPolicyAndRecipient, c::findByCloseYm,
+                l::peek, s::findDue, s::findByPolicyAndAgent, s::findBySourceCalcId, e::findById, agentExists);
+        return new DryRunSimulator(rules, incentives, recipients, resolver, policyStatus, reads, estimateReads, taxPolicy, clock,
+                DryRunSimulator.ReadTx.DIRECT);
     }
 
     /**

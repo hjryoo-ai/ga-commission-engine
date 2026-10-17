@@ -3,6 +3,7 @@ package ga.comm.outbox.contract;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLParser;
 import com.networknt.schema.JsonSchema;
 import com.networknt.schema.JsonSchemaFactory;
 import com.networknt.schema.SchemaLocation;
@@ -40,7 +41,12 @@ public final class PortalContract {
     private static final String META = "https://json-schema.org/";
 
     private static final JsonMapper JSON = JsonMapper.builder().build();
-    private static final YAMLMapper YAML = new YAMLMapper();
+    /**
+     * YAML 1.2 core 스키마의 불리언(true/false만) — OpenAPI 3.1은 YAML 1.2를 권장한다. 기본 YAML 1.1 해석은 {@code yes}/{@code no}/{@code on}/
+     * {@code off}를 불리언으로 읽어 {@code fyCommissionByInstallment}의 {@code required: [no, amount]}가 {@code [false, amount]}가 된다(E2 ②에서 발견 —
+     * 그 전에는 이 스키마를 검증에 쓰지 않았다).
+     */
+    private static final YAMLMapper YAML = YAMLMapper.builder().enable(YAMLParser.Feature.PARSE_BOOLEAN_LIKE_WORDS_AS_STRINGS).build();
     private static final PortalContract INSTANCE = new PortalContract();
 
     /** 저장소 사본에서 풀린 스키마 문서 수(시험이 0이 아님을 본다). */

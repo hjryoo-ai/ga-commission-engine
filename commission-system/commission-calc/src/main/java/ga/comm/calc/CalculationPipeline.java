@@ -18,6 +18,11 @@ public final class CalculationPipeline {
                 .toList();
     }
 
+    /** 조립된 Step 클래스(실행 순서) — 운영 조립과 dry-run 파이프라인의 일치 시험(E2 ②, 읽기 전용). */
+    public java.util.List<Class<?>> stepClasses() {
+        return configs.stream().<Class<?>>map(c -> c.step().getClass()).toList();
+    }
+
     public void run(CalcContext ctx) {
         for (StepConfig config : configs) {
             if (!config.activePeriod().contains(ctx.event().eventDate())) {
