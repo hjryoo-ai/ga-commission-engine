@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: ga-commission-engine 내부 API — 포털이 쓰는 것 (v1 골격)
-  version: 1.3.0
+  version: 1.4.0
   description: |
     엔진(테넌트별 인스턴스)이 포털에 제공하는 내부 API(설계서 §4.1·§4.3). 포털 Phase 0의 골격이며 구현은 엔진 E1(피드)·E2(동기 API·명세)에서 한다.
     인증은 서비스 토큰(운영 mTLS 권장) — 설계사 토큰으로는 접근할 수 없다.
@@ -11,6 +11,8 @@ info:
     1.2.0(포털 Phase 2 지시문 §0 M1): 피드에 400(INVALID_REQUEST) 응답 — 엔진 E1이 이미 내는 것.
     1.3.0(포털 Phase 2 계획 승인 §3, 엔진 E2 계획 §4 R1~R8): 동기 API의 엔진 입력(보험사·경과 회차·새 보험료) 선택 추가, 한도 미적용 계약의 결과(limitAmount·projectedAccum 선택),
       시책 금액의 정의와 삭감액, PolicyEventResult 필드의 뜻, 세 동기 API의 400·404·422 Problem, CONFIRMED 명세의 뜻. 전부 추가·완화·설명.
+    1.4.0(포털 Phase 2 수용 심사 §3 N1~N3, 엔진 E2 보고서 §9-6·§9-12): 키 `no`를 따옴표로(YAML 1.1 해석기가 불리언 false로 읽었다),
+      clawbackAmount의 부호(부활은 양수), 시뮬레이션 응답 필드의 정의, INSURER_AMBIGUOUS의 뜻. 표기·설명뿐 — 스키마 의미 변경 없음.
 servers:
   - url: https://engine.invalid
 security:
@@ -92,7 +94,7 @@ paths:
                 $ref: '#/components/schemas/Problem'
         '422':
           description: |
-            code INSURER_AMBIGUOUS — insurerCd가 없고 기준일에 그 상품의 유효 요율이 여러 보험사에 있다 (v1.3).
+            code INSURER_AMBIGUOUS — insurerCd가 없고 기준일에 그 상품의 유효 요율을 가진 후보 보험사가 정확히 1곳이 아니다(0곳 또는 2곳 이상) (v1.3, 뜻 v1.4).
           content:
             application/json:
               schema:
@@ -241,7 +243,7 @@ components:
           minimum: 1
         insurerCd:
           $ref: '../../events/v1/defs.schema.json#/$defs/id'
-          description: 보험사 코드(v1.3, R1) — 엔진 요율의 키는 (보험사, 상품)이다. 없으면 엔진은 기준일에 그 상품의 유효 요율이 한 보험사뿐일 때만 그것으로 정하고, 아니면 422 INSURER_AMBIGUOUS.
+          description: 보험사 코드(v1.3, R1) — 엔진 요율의 키는 (보험사, 상품)이다. 없으면 엔진은 기준일에 그 상품의 유효 요율을 가진 보험사가 정확히 1곳일 때만 그것으로 정하고, 0곳이거나 2곳 이상이면 422 INSURER_AMBIGUOUS(v1.4).
         incentiveCodes:
           type: array
           description: 엔진 시책 마스터의 코드(v1.3, R3) — 주면 그 시책만 계산한다.
@@ -257,17 +259,19 @@ components:
           description: 그 계약의 한도(v1.3, R2 — 선택). 없으면 한도 미적용 계약이다(엔진이 원장을 열지 않는 계약 — 예 2026-06-30 이전 체결).
         fyCommissionByInstallment:
           type: array
+          description: 초년도 회차별 수수료(회차 `no` 오름차순) — 회차마다 한 항목(v1.4 설명).
           items:
             type: object
-            required: [no, amount]
+            required: ['no', amount]
             properties:
-              no:
+              'no':
                 type: integer
                 minimum: 1
               amount:
                 $ref: '../../events/v1/defs.schema.json#/$defs/won'
         incentives:
           type: array
+          description: 시책 코드별 합산 — 코드마다 한 항목(v1.4 설명).
           items:
             type: object
             required: [code, amount, limitIncluded]
@@ -292,8 +296,10 @@ components:
           properties:
             firstYearPayout:
               $ref: '../../events/v1/defs.schema.json#/$defs/won'
+              description: 초년도 지급분 = Σ fyCommissionByInstallment.amount + Σ incentives.amount(v1.4 설명 — 엔진 E2 §6.8).
             schedule:
               type: array
+              description: 분급 이연분의 dueYm별 합산 — dueYm마다 한 항목, 오름차순(v1.4 설명).
               items:
                 type: object
                 required: [dueYm, amount]
@@ -331,7 +337,7 @@ components:
       properties:
         clawbackAmount:
           $ref: '../../events/v1/defs.schema.json#/$defs/won'
-          description: 환수액(v1.3, R5) — ≤ 0, CommissionCalculated(commType CLAWBACK)과 같은 부호.
+          description: 환수액(v1.3, R5). 부호는 CommissionCalculated와 같다 — 해약·실효의 환수는 ≤ 0, 부활(REINSTATE)의 재지급은 > 0(v1.4 — 엔진 E2 §9-12).
         offsetAgainstMonth:
           type: object
           required: [closeYm, before, after]
@@ -345,7 +351,7 @@ components:
               $ref: '../../events/v1/defs.schema.json#/$defs/won'
         receivableRemaining:
           $ref: '../../events/v1/defs.schema.json#/$defs/won'
-          description: 이 이벤트 뒤 그 설계사의 열린 환수 채권 잔액 합(v1.3, R5).
+          description: 이 이벤트 뒤 그 설계사의 열린 환수 채권 잔액 합(v1.3, R5) = 열린 채권 잔액 + max(0, −offsetAgainstMonth.after)(v1.4 설명 — 그 달 순액이 음수가 되면 그만큼 새 채권).
         cancelledDeferrals:
           type: array
           items:
