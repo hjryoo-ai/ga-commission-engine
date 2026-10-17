@@ -43,6 +43,12 @@ import ga.comm.outbox.publish.PublishingStores;
 import ga.comm.rule.RuleRepository;
 import ga.comm.rule.model.EffectivePeriod;
 import ga.comm.settlement.AdjustmentService;
+import ga.comm.settlement.estimate.EstimateReads;
+import ga.comm.settlement.estimate.StatementEstimator;
+import ga.comm.outbox.publish.EstimatePublisher;
+import ga.comm.deferral.PolicyStatusProvider;
+import java.time.OffsetDateTime;
+import java.time.temporal.ChronoUnit;
 import ga.comm.settlement.ClosedMonthGuardedCalcStore;
 import ga.comm.settlement.AgentSettlementStore;
 import ga.comm.settlement.CloseHook;
@@ -86,6 +92,10 @@ public final class OutboxEngine {
     public final MonthCloseService closeService;
     public final PayoutService payoutService;
     public final AdjustmentService adjustmentService;
+    /** 잠정 명세 산출기(E2 ①) — 읽기 함수 묶음만 받는다. */
+    public final StatementEstimator estimator;
+    public final EstimatePublisher estimatePublisher;
+    private final Clock clock;
 
     public OutboxEngine(RuleRepository rules, AgentDirectory directory, Raw raw, Clock clock, Supplier<UUID> ids) {
         this.raw = raw;
@@ -97,7 +107,9 @@ public final class OutboxEngine {
         calcs = new ClosedMonthGuardedCalcStore(stores.calcs(), raw.close());
         CloseStatusProvider closeStatus = SettleCloseStore.asProvider(raw.close());
         CloseYmResolver resolver = event -> closeStatus.attributionFor(CloseYm.from(event.eventDate()));
-        releaseService = new DeferralReleaseService(stores.schedules(), calcs, (policyNo, asOf) -> true);
+        PolicyStatusProvider policyStatus = (policyNo, asOf) -> true;
+        releaseService = new DeferralReleaseService(stores.schedules(), calcs, policyStatus);
+        WithholdingTaxPolicy taxPolicy = WithholdingTaxPolicy.STANDARD_3_3;   // 지급 런과 잠정 명세가 같은 인스턴스(E2 P9)
 
         EffectivePeriod from = EffectivePeriod.from(STEPS_FROM);
         List<StepConfig> steps = List.of(
@@ -124,9 +136,31 @@ public final class OutboxEngine {
         closeService = new MonthCloseService(calcs, stores.events(), stores.ledgers(), raw.close(), closeHooks, clock,
                 List.of(stores.statementPublisher()));
         payoutService = new PayoutService(calcs, raw.settlements(), raw.close(),
-                new ClawbackOffsetService(stores.receivables()), WithholdingTaxPolicy.STANDARD_3_3, raw.statements(), clock,
+                new ClawbackOffsetService(stores.receivables()), taxPolicy, raw.statements(), clock,
                 List.of(stores.payoutPublisher()));
         adjustmentService = new AdjustmentService(calcs, closeStatus, stores.adjustments());
+        DeferralScheduleStore schedules = stores.schedules();
+        ClawbackReceivableStore receivables = stores.receivables();
+        AdjustmentService.AdjustmentStore adjustments = stores.adjustments();
+        estimator = new StatementEstimator(new EstimateReads(calcs::findByCloseYm, calcs::findById, schedules::findDue, policyStatus,
+                receivables::findOffsettable, adjustments::findByCloseYm, raw.close()::stateOf), taxPolicy);
+        estimatePublisher = new EstimatePublisher(publisher);
+        this.clock = clock;
+    }
+
+    /**
+     * 잠정 명세 잡과 같은 순서(E2 ① — {@code statementEstimateJob}): ⓐ 미부여 행 순번 부여 ⓑ {@code basisSeq} = 그 뒤 최대 부여 순번(하한, Q3)
+     * ⓒ 산출 ⓓ 설계사마다 적재. {@code asOf} = 시계(초 단위).
+     */
+    public List<StatementEstimator.Estimate> estimateAndPublish(CloseYm ym) {
+        raw.outbox().assignPending(10_000);
+        long basisSeq = raw.outbox().headSeq();
+        OffsetDateTime asOf = OffsetDateTime.now(clock).truncatedTo(ChronoUnit.SECONDS);
+        List<StatementEstimator.Estimate> estimates = estimator.estimate(ym);
+        for (StatementEstimator.Estimate e : estimates) {
+            estimatePublisher.publish(e, basisSeq, asOf);
+        }
+        return estimates;
     }
 
     /** 결정론 eventId(골든 스냅샷) — 00000000-0000-0000-0000-{n}. */

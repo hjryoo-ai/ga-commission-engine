@@ -35,7 +35,7 @@ public final class A1ScenarioRunner {
     private A1ScenarioRunner() {
     }
 
-    /** 인메모리 시험 엔진의 서비스. 잠정 명세는 ①이 들어온 뒤 연결한다. */
+    /** 인메모리 시험 엔진의 서비스. */
     public static Services of(OutboxEngine e) {
         return new Services() {
             @Override
@@ -55,7 +55,7 @@ public final class A1ScenarioRunner {
 
             @Override
             public void estimate(CloseYm ym) {
-                throw new UnsupportedOperationException("잠정 명세는 E2 ①에서 연결한다");
+                e.estimateAndPublish(ym);
             }
         };
     }
