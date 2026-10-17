@@ -2,6 +2,7 @@ package ga.comm.app.config;
 
 import ga.comm.calc.recipient.AgentDirectory;
 import ga.comm.calc.store.CommCalcStore;
+import ga.comm.settlement.ClosedMonthGuardedCalcStore;
 import ga.comm.calc.store.PolicyEventStore;
 import ga.comm.clawback.ClawbackReceivableStore;
 import ga.comm.deferral.DeferralScheduleStore;
@@ -81,9 +82,14 @@ public class PersistenceConfig {
         return s.events();
     }
 
+    /**
+     * 계산 저장소 = 마감월 가드(바깥) → 발행 데코레이터 → Oracle(E2 ④, E1 P11). 가드가 바깥이라 거부된 insert는 아웃박스에 닿지 않는다.
+     * 해석기를 거치는 경로는 동작이 같고, 해석기를 우회해 CLOSED 월로 넣는 경로(마감월을 준 {@code deferralReleaseJob} — E2 P10)는
+     * 여기서 거부된다(결함 수정). 조립 일치: {@code AssemblyParityTest}.
+     */
     @Bean
-    public CommCalcStore commCalcStore(PublishingStores s) {
-        return s.calcs();
+    public CommCalcStore commCalcStore(PublishingStores s, SettleCloseStore settleCloseStore) {
+        return new ClosedMonthGuardedCalcStore(s.calcs(), settleCloseStore);
     }
 
     @Bean

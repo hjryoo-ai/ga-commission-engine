@@ -37,4 +37,5 @@ dependencies {
     testImplementation(testFixtures(project(":commission-disclosure")))
     testImplementation(testFixtures(project(":commission-settlement")))   // 골든 조립(E1 Q3 — 운영 조립 일치 시험)
     testImplementation(testFixtures(project(":commission-outbox")))       // 피드 응답을 포털 FeedResponse 사본으로 검증(E1 C7)
+    testImplementation(testFixtures(project(":commission-clawback")))     // 조립 일치 시험의 인메모리 채권 저장소(E2 ④)
 }

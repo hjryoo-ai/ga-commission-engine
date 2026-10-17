@@ -55,6 +55,19 @@ class AssemblyParityTest {
                 .hasSize(4);
     }
 
+    /** E2 ④ — 운영 {@code CommCalcStore} 빈의 바깥 = 마감월 가드, 골든 조립도 같다(다시 빠지면 실패 — 주입 S5). */
+    @Test
+    void 계산_저장소의_바깥은_마감월_가드이고_골든_조립과_같다() {
+        ga.comm.outbox.publish.PublishingStores stores = ga.comm.outbox.publish.PublishingStores.wrap(
+                new ga.comm.outbox.publish.OutboxPublisher(new ga.comm.outbox.fixture.InMemoryOutboxStore(), java.time.Clock.systemUTC()),
+                new InMemoryPolicyEventStore(), calcStore, ledgerStore, scheduleStore,
+                new ga.comm.clawback.fixture.InMemoryClawbackReceivableStore(), new ga.comm.settlement.fixture.InMemoryAdjustmentStore());
+        ga.comm.calc.store.CommCalcStore bean = new PersistenceConfig().commCalcStore(stores, closeStore);
+
+        assertThat(bean.getClass()).isEqualTo(ga.comm.settlement.ClosedMonthGuardedCalcStore.class)
+                .isEqualTo(GoldenEngine.fullAssembly().calcStoreOuter());
+    }
+
     @Test
     void 정정_서비스의_reversal_훅은_골든_조립과_같다() {
         RevisionService revision = new ServiceConfig().revisionService(calcStore, SettleCloseStore.asProvider(closeStore),

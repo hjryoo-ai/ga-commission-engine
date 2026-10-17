@@ -43,6 +43,7 @@ import ga.comm.outbox.publish.PublishingStores;
 import ga.comm.rule.RuleRepository;
 import ga.comm.rule.model.EffectivePeriod;
 import ga.comm.settlement.AdjustmentService;
+import ga.comm.settlement.ClosedMonthGuardedCalcStore;
 import ga.comm.settlement.AgentSettlementStore;
 import ga.comm.settlement.CloseHook;
 import ga.comm.settlement.DeferralReleaseCloseHook;
@@ -77,6 +78,8 @@ public final class OutboxEngine {
     public final Raw raw;
     public final OutboxPublisher publisher;
     public final PublishingStores stores;
+    /** 엔진이 쓰는 계산 저장소 — 마감월 가드가 발행 데코레이터를 감싼 것(운영과 같다). */
+    public final CommCalcStore calcs;
     public final CommissionCalculator calculator;
     public final RevisionService revision;
     public final DeferralReleaseService releaseService;
@@ -90,9 +93,11 @@ public final class OutboxEngine {
         stores = PublishingStores.wrap(publisher, raw.events(), raw.calcs(), raw.ledgers(), raw.schedules(), raw.receivables(),
                 raw.adjustments());
 
+        // 운영 조립과 같은 순서: 마감월 가드(바깥) → 발행 데코레이터(E2 ④)
+        calcs = new ClosedMonthGuardedCalcStore(stores.calcs(), raw.close());
         CloseStatusProvider closeStatus = SettleCloseStore.asProvider(raw.close());
         CloseYmResolver resolver = event -> closeStatus.attributionFor(CloseYm.from(event.eventDate()));
-        releaseService = new DeferralReleaseService(stores.schedules(), stores.calcs(), (policyNo, asOf) -> true);
+        releaseService = new DeferralReleaseService(stores.schedules(), calcs, (policyNo, asOf) -> true);
 
         EffectivePeriod from = EffectivePeriod.from(STEPS_FROM);
         List<StepConfig> steps = List.of(
@@ -100,8 +105,8 @@ public final class OutboxEngine {
                 new StepConfig(new PayoutRateStep(), from, 20),
                 new StepConfig(new IncentiveStep(), from, 30),
                 new StepConfig(new OverrideCommissionStep(), from, 40),
-                new StepConfig(new ClawbackStep(stores.calcs()), from, 45),
-                new StepConfig(new ReviveStep(stores.calcs(), ReviveStep.RevivePolicy.REPAY), from, 46),
+                new StepConfig(new ClawbackStep(calcs), from, 45),
+                new StepConfig(new ReviveStep(calcs, ReviveStep.RevivePolicy.REPAY), from, 46),
                 new StepConfig(new LimitGateStep(stores.ledgers()), from, 50),
                 new StepConfig(new DeferralSplitStep(), from, 55),
                 new StepConfig(new PremiumRepriceStep(stores.ledgers()), from, 60));
@@ -111,17 +116,17 @@ public final class OutboxEngine {
                 new DeferralSchedulePoster(stores.schedules()),
                 new DeferralCancelListener(releaseService));
         calculator = new CommissionCalculator(rules, new RecipientResolver(directory, AffiliationBasis.EVENT_DATE),
-                new CalculationPipeline(steps), stores.events(), stores.calcs(), resolver, listeners);
+                new CalculationPipeline(steps), stores.events(), calcs, resolver, listeners);
 
-        revision = new RevisionService(stores.calcs(), closeStatus,
+        revision = new RevisionService(calcs, closeStatus,
                 List.of(new LimitReversalHook(stores.ledgers()), new DeferralReversalHook(stores.schedules())));
         List<CloseHook> closeHooks = List.of(new DeferralReleaseCloseHook(releaseService));
-        closeService = new MonthCloseService(stores.calcs(), stores.events(), stores.ledgers(), raw.close(), closeHooks, clock,
+        closeService = new MonthCloseService(calcs, stores.events(), stores.ledgers(), raw.close(), closeHooks, clock,
                 List.of(stores.statementPublisher()));
-        payoutService = new PayoutService(stores.calcs(), raw.settlements(), raw.close(),
+        payoutService = new PayoutService(calcs, raw.settlements(), raw.close(),
                 new ClawbackOffsetService(stores.receivables()), WithholdingTaxPolicy.STANDARD_3_3, raw.statements(), clock,
                 List.of(stores.payoutPublisher()));
-        adjustmentService = new AdjustmentService(stores.calcs(), closeStatus, stores.adjustments());
+        adjustmentService = new AdjustmentService(calcs, closeStatus, stores.adjustments());
     }
 
     /** 결정론 eventId(골든 스냅샷) — 00000000-0000-0000-0000-{n}. */
