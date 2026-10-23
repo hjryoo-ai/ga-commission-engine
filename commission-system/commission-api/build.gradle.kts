@@ -23,3 +23,15 @@ dependencies {
     testImplementation(testFixtures(project(":commission-clawback")))  // 명세 조회 시험의 인메모리 엔진(E2 ③)
     testImplementation(testFixtures(project(":commission-settlement")))
 }
+
+// 포털 시뮬레이션 샘플(포털 Phase 5 ⓪ — contracts/samples/simulations/): SimulationContractTest가 디렉터리를 바이트로 대조한다 —
+// 입력으로 선언해야 샘플만 바뀌어도 시험이 다시 돈다. -Psamples.update=true 이면 그 시험이 파일을 다시 쓴다(포털에 사본 갱신을 알린다).
+tasks.named<Test>("test") {
+    val samples = rootProject.file("contracts/samples/simulations")
+    systemProperty("engine.simSamplesDir", samples.absolutePath)
+    inputs.files(rootProject.fileTree(samples)).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("simulationSamples")
+    if (providers.gradleProperty("samples.update").orNull == "true") {
+        systemProperty("samples.update", "true")
+        outputs.upToDateWhen { false }
+    }
+}

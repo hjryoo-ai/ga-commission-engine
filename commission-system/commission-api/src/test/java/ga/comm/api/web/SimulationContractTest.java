@@ -40,11 +40,20 @@ import org.springframework.http.converter.ByteArrayHttpMessageConverter;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -54,6 +63,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * E2 ②·C5 — 시뮬레이션 API 응답이 포털 계약 사본(v1.3)의 {@code NewContractResult}·{@code PolicyEventResult}·{@code Problem} 스키마를
  * 통과한다: 한도 초과(월납 150,000 + 정액 시책), 분급 커브 있음/없음, 2026-06-30 체결(한도 미적용 — 선택 필드 없음), 해약 6/7회차 경계
  * ({@code elapsedInstallments}), 그리고 계약의 오류 코드 전부. 금액의 정확성은 {@code DryRunSimulatorTest}(실제 처리와 대조).
+ *
+ * <p>포털 응답 샘플(포털 Phase 5 ⓪ — 포털 계획 Q17): {@link #포털_시뮬레이션_샘플()}이 포털이 실제로 보낼 요청과 그 응답 바이트를
+ * {@code contracts/samples/simulations/}에 둔다. 기본 실행은 파일과 바이트를 대조하고(엔진이 바뀌면 이 시험이 먼저 실패),
+ * {@code -Psamples.update=true}일 때만 파일을 다시 쓴다. 포털은 이 디렉터리를 사본으로 받아 스텁·E2E의 유일한 엔진 데이터로 쓴다.
  */
 class SimulationContractTest {
 
@@ -105,6 +118,11 @@ class SimulationContractTest {
         JsonNode json = JSON.readTree(out);
         assertThat(PortalContract.get().validateApiSchema(schema, json)).as(json.toString()).isEmpty();
         return json;
+    }
+
+    private static byte[] exchange(MockMvc m, String path, String body, int status) throws Exception {
+        return m.perform(post(path).contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().is(status))
+                .andReturn().getResponse().getContentAsByteArray();
     }
 
     private static String problem(MockMvc m, String path, String body, int status) throws Exception {
@@ -171,5 +189,87 @@ class SimulationContractTest {
         assertThat(problem(mvc, EVENT, event.formatted("POL-2026-0001", "PAYMENT_OVERDUE"), 422)).isEqualTo("UNSUPPORTED_EVENT_TYPE");
         assertThat(problem(mvc, EVENT, event.formatted("POL-2026-0001", "REDUCE"), 400)).isEqualTo("INVALID_REQUEST");
         assertThat(problem(mvc, EVENT, event.formatted("POL-2026-0001", "EXPLODE"), 400)).isEqualTo("INVALID_REQUEST");
+    }
+
+    /** 포털 샘플 한 건 — {@code engineState}는 포털 스텁이 테넌트에 붙이는 엔진 상태 묶음(standard: 보험사 하나, ambiguous: 보험사 둘). */
+    private record Sample(String name, String engineState, String path, String request, int status) {
+        String kind() {
+            return path.equals(NEW) ? "new-contract" : "policy-event";
+        }
+    }
+
+    private static final String S1 = newContract("2026-08-01", "");
+    private static final String CANCEL = "{\"agentId\":\"A-1001\",\"policyNo\":\"POL-2026-0001\",\"eventType\":\"CANCEL\",\"asOfDate\":\"2027-02-15\"";
+    private static final String REDUCE = "{\"agentId\":\"A-1001\",\"policyNo\":\"POL-2026-0001\",\"eventType\":\"REDUCE\",\"asOfDate\":\"2027-02-15\"";
+
+    /** 포털 계획 ③ 표 S1~S12 — 포털이 보낼 요청 그대로(보험사·시책 코드 없음 — 포털 Q3·Q4). */
+    private static final List<Sample> SAMPLES = List.of(
+            new Sample("new-limit-exceeded", "standard", NEW, S1, 200),
+            new Sample("new-curve", "standard", NEW, newContract("2027-01-15", ""), 200),
+            new Sample("new-no-limit", "standard", NEW, newContract("2026-06-30", ""), 200),
+            new Sample("new-term-3", "standard", NEW, newContract("2026-08-01", ",\"paymentTermMonths\":3"), 200),
+            new Sample("event-cancel-7", "standard", EVENT, CANCEL + ",\"elapsedInstallments\":7}", 200),
+            new Sample("event-cancel-6", "standard", EVENT, CANCEL + ",\"elapsedInstallments\":6}", 200),
+            new Sample("event-reduce", "standard", EVENT, REDUCE + ",\"elapsedInstallments\":7,\"newMonthlyPremium\":100000}", 200),
+            new Sample("event-unsupported", "standard", EVENT,
+                    "{\"agentId\":\"A-1001\",\"policyNo\":\"POL-2026-0001\",\"eventType\":\"PAYMENT_OVERDUE\",\"asOfDate\":\"2027-02-15\"}", 422),
+            new Sample("event-unknown-policy", "standard", EVENT,
+                    "{\"agentId\":\"A-1001\",\"policyNo\":\"POL-9999\",\"eventType\":\"CANCEL\",\"asOfDate\":\"2027-02-15\"}", 404),
+            new Sample("new-unknown-agent", "standard", NEW, S1.replace("A-1001", "A-9999"), 404),
+            new Sample("new-ambiguous", "ambiguous", NEW, S1, 422),
+            new Sample("new-ambiguous-samlife", "ambiguous", NEW, newContract("2026-08-01", ",\"insurerCd\":\"SAMLIFE\""), 200),
+            new Sample("event-reduce-no-premium", "standard", EVENT, REDUCE + ",\"elapsedInstallments\":7}", 400));
+
+    @Test
+    void 포털_시뮬레이션_샘플() throws Exception {
+        Path dir = Path.of(System.getProperty("engine.simSamplesDir"));
+        boolean update = Boolean.getBoolean("samples.update");
+        StringBuilder index = new StringBuilder("[\n");
+        for (Sample s : SAMPLES) {
+            MockMvc m = s.engineState().equals("standard") ? mvc : ambiguousMvc;
+            byte[] response = exchange(m, s.path(), s.request(), s.status());
+            JsonNode json = JSON.readTree(response);
+            String schema = s.status() != 200 ? "Problem" : s.path().equals(NEW) ? "NewContractResult" : "PolicyEventResult";
+            assertThat(PortalContract.get().validateApiSchema(schema, json)).as(s.name() + " " + json).isEmpty();
+            // 결정성: 같은 요청을 다시 보내면 같은 바이트다(샘플이 시계·ID 순서에 흔들리지 않는다)
+            assertThat(exchange(m, s.path(), s.request(), s.status())).as(s.name()).isEqualTo(response);
+            sample(dir, s.name() + ".request.json", s.request().getBytes(StandardCharsets.UTF_8), update);
+            sample(dir, s.name() + ".response.json", response, update);
+            index.append("  {\"name\":\"").append(s.name()).append("\",\"engineState\":\"").append(s.engineState())
+                    .append("\",\"path\":\"").append(s.kind()).append("\",\"status\":").append(s.status()).append('}')
+                    .append(s == SAMPLES.getLast() ? "\n" : ",\n");
+        }
+        sample(dir, "index.json", index.append("]\n").toString().getBytes(StandardCharsets.UTF_8), update);
+
+        // 닫힌 집합 — 표에 없는 파일이 디렉터리에 남아 있으면 실패
+        Set<String> expected = SAMPLES.stream().flatMap(s -> Stream.of(s.name() + ".request.json", s.name() + ".response.json"))
+                .collect(Collectors.toCollection(TreeSet::new));
+        expected.add("index.json");
+        try (Stream<Path> files = Files.list(dir)) {
+            Set<String> present = files.map(p -> p.getFileName().toString()).collect(Collectors.toCollection(TreeSet::new));
+            assertThat(present).isEqualTo(expected);
+        }
+
+        // 보험사·시책 코드 없이 보낸 S1이 기존 한도 초과 사례(코드 지정)와 같은 금액이다 — 코드가 없으면 시책 전부 적용
+        JsonNode s1 = JSON.readTree(Files.readAllBytes(dir.resolve("new-limit-exceeded.response.json")));
+        assertThat(s1.path("incentives").get(0).toString())
+                .isEqualTo("{\"code\":\"Q4-NEW\",\"amount\":855000,\"limitCutAmt\":145000,\"limitIncluded\":true}");
+        assertThat(s1.path("limitAmount").asLong()).isEqualTo(1_800_000);
+        assertThat(JSON.readTree(Files.readAllBytes(dir.resolve("event-cancel-6.response.json"))).path("clawbackAmount").asLong())
+                .isEqualTo(-1_260_000);
+        assertThat(JSON.readTree(Files.readAllBytes(dir.resolve("new-ambiguous.response.json"))).path("code").asText())
+                .isEqualTo("INSURER_AMBIGUOUS");
+    }
+
+    private static void sample(Path dir, String file, byte[] bytes, boolean update) throws IOException {
+        Path p = dir.resolve(file);
+        if (update) {
+            Files.createDirectories(dir);
+            Files.write(p, bytes);
+        } else {
+            assertThat(Files.exists(p)).as(p + " 없음 — ./gradlew :commission-api:test -Psamples.update=true 로 쓴다").isTrue();
+            assertThat(Files.readAllBytes(p)).as(file + " 가 엔진 응답과 다르다 — 엔진이 바뀌었으면 -Psamples.update=true 로 다시 쓰고 포털에 알린다")
+                    .isEqualTo(bytes);
+        }
     }
 }
