@@ -67,6 +67,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * <p>포털 응답 샘플(포털 Phase 5 ⓪ — 포털 계획 Q17): {@link #포털_시뮬레이션_샘플()}이 포털이 실제로 보낼 요청과 그 응답 바이트를
  * {@code contracts/samples/simulations/}에 둔다. 기본 실행은 파일과 바이트를 대조하고(엔진이 바뀌면 이 시험이 먼저 실패),
  * {@code -Psamples.update=true}일 때만 파일을 다시 쓴다. 포털은 이 디렉터리를 사본으로 받아 스텁·E2E의 유일한 엔진 데이터로 쓴다.
+ * 200 본문은 컨트롤러가 계약 필드 순서로 직렬화하므로 바이트로, 오류 본문({@code Problem})은 값으로 대조한다 — 컨트롤러가 {@code Map.of}로 만들어
+ * 키 순서가 JVM 실행마다 다르다(CI 빠른 티어에서 {@code {"message":…,"code":…}}로 나와 바이트 대조가 실패한 것을 보고 바꿨다).
  */
 class SimulationContractTest {
 
@@ -233,13 +235,13 @@ class SimulationContractTest {
             assertThat(PortalContract.get().validateApiSchema(schema, json)).as(s.name() + " " + json).isEmpty();
             // 결정성: 같은 요청을 다시 보내면 같은 바이트다(샘플이 시계·ID 순서에 흔들리지 않는다)
             assertThat(exchange(m, s.path(), s.request(), s.status())).as(s.name()).isEqualTo(response);
-            sample(dir, s.name() + ".request.json", s.request().getBytes(StandardCharsets.UTF_8), update);
-            sample(dir, s.name() + ".response.json", response, update);
+            sample(dir, s.name() + ".request.json", s.request().getBytes(StandardCharsets.UTF_8), update, true);
+            sample(dir, s.name() + ".response.json", response, update, s.status() == 200);
             index.append("  {\"name\":\"").append(s.name()).append("\",\"engineState\":\"").append(s.engineState())
                     .append("\",\"path\":\"").append(s.kind()).append("\",\"status\":").append(s.status()).append('}')
                     .append(s == SAMPLES.getLast() ? "\n" : ",\n");
         }
-        sample(dir, "index.json", index.append("]\n").toString().getBytes(StandardCharsets.UTF_8), update);
+        sample(dir, "index.json", index.append("]\n").toString().getBytes(StandardCharsets.UTF_8), update, true);
 
         // 닫힌 집합 — 표에 없는 파일이 디렉터리에 남아 있으면 실패
         Set<String> expected = SAMPLES.stream().flatMap(s -> Stream.of(s.name() + ".request.json", s.name() + ".response.json"))
@@ -261,15 +263,20 @@ class SimulationContractTest {
                 .isEqualTo("INSURER_AMBIGUOUS");
     }
 
-    private static void sample(Path dir, String file, byte[] bytes, boolean update) throws IOException {
+    /** {@code exact}면 바이트, 아니면 JSON 값(키 순서 무시)으로 대조한다. */
+    private static void sample(Path dir, String file, byte[] bytes, boolean update, boolean exact) throws IOException {
         Path p = dir.resolve(file);
         if (update) {
             Files.createDirectories(dir);
             Files.write(p, bytes);
         } else {
             assertThat(Files.exists(p)).as(p + " 없음 — ./gradlew :commission-api:test -Psamples.update=true 로 쓴다").isTrue();
-            assertThat(Files.readAllBytes(p)).as(file + " 가 엔진 응답과 다르다 — 엔진이 바뀌었으면 -Psamples.update=true 로 다시 쓰고 포털에 알린다")
-                    .isEqualTo(bytes);
+            String hint = file + " 가 엔진 응답과 다르다 — 엔진이 바뀌었으면 -Psamples.update=true 로 다시 쓰고 포털에 알린다";
+            if (exact) {
+                assertThat(Files.readAllBytes(p)).as(hint).isEqualTo(bytes);
+            } else {
+                assertThat(JSON.readTree(Files.readAllBytes(p))).as(hint).isEqualTo(JSON.readTree(bytes));
+            }
         }
     }
 }
