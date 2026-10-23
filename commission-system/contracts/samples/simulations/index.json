@@ -1,0 +1,15 @@
+[
+  {"name":"new-limit-exceeded","engineState":"standard","path":"new-contract","status":200},
+  {"name":"new-curve","engineState":"standard","path":"new-contract","status":200},
+  {"name":"new-no-limit","engineState":"standard","path":"new-contract","status":200},
+  {"name":"new-term-3","engineState":"standard","path":"new-contract","status":200},
+  {"name":"event-cancel-7","engineState":"standard","path":"policy-event","status":200},
+  {"name":"event-cancel-6","engineState":"standard","path":"policy-event","status":200},
+  {"name":"event-reduce","engineState":"standard","path":"policy-event","status":200},
+  {"name":"event-unsupported","engineState":"standard","path":"policy-event","status":422},
+  {"name":"event-unknown-policy","engineState":"standard","path":"policy-event","status":404},
+  {"name":"new-unknown-agent","engineState":"standard","path":"new-contract","status":404},
+  {"name":"new-ambiguous","engineState":"ambiguous","path":"new-contract","status":422},
+  {"name":"new-ambiguous-samlife","engineState":"ambiguous","path":"new-contract","status":200},
+  {"name":"event-reduce-no-premium","engineState":"standard","path":"policy-event","status":400}
+]
