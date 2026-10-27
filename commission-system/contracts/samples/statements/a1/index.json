@@ -1,0 +1,7 @@
+[
+  {"name":"202702-estimate","agentId":"A-1001","ym":"202702","mode":"ESTIMATE","status":200},
+  {"name":"202608-confirmed","agentId":"A-1001","ym":"202608","mode":"CONFIRMED","status":200},
+  {"name":"202702-confirmed-not-confirmed","agentId":"A-1001","ym":"202702","mode":"CONFIRMED","status":404},
+  {"name":"202608-estimate-month-closed","agentId":"A-1001","ym":"202608","mode":"ESTIMATE","status":422},
+  {"name":"unknown-agent","agentId":"A-9999-NONE","ym":"202608","mode":"CONFIRMED","status":404}
+]

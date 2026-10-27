@@ -1,0 +1,4 @@
+[
+  {"name":"202608-estimate","agentId":"A-1001","ym":"202608","mode":"ESTIMATE","status":200},
+  {"name":"202608-confirmed","agentId":"A-1001","ym":"202608","mode":"CONFIRMED","status":200}
+]
