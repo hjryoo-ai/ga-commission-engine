@@ -34,6 +34,10 @@ tasks.named<Test>("test") {
     val statements = rootProject.file("contracts/samples/statements")
     systemProperty("engine.statementSamplesDir", statements.absolutePath)
     inputs.files(rootProject.fileTree(statements)).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("statementSamples")
+    // 포털 데모 스트림·샘플(포털 Phase 8 ⓪b — contracts/samples/demo/): DemoContractTest — 같은 방식
+    val demo = rootProject.file("contracts/samples/demo")
+    systemProperty("engine.demoSamplesDir", demo.absolutePath)
+    inputs.files(rootProject.fileTree(demo)).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("demoSamples")
     if (providers.gradleProperty("samples.update").orNull == "true") {
         systemProperty("samples.update", "true")
         outputs.upToDateWhen { false }

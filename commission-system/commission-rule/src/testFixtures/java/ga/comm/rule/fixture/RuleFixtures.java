@@ -44,8 +44,23 @@ public final class RuleFixtures {
     private RuleFixtures() {
     }
 
+    /** 표준 한도 규칙(1200%룰): GA→설계사 2026-07-01 체결분부터, 초년도 12개월, 초과분 이연, 환수 시 복원. */
+    public static LimitRule standardLimitRule() {
+        return new LimitRule(1, ChannelType.GA_TO_AGENT, new BigDecimal("12.00"),
+                12, OverLimitAction.DEFER_AFTER_FY, true,
+                EffectivePeriod.from(GA_LIMIT_FROM));
+    }
+
     /** 2026~2027 표준 룰 일체가 적재된 저장소. */
     public static InMemoryRuleStore standardRules() {
+        return standardRules(List.of(standardLimitRule()));
+    }
+
+    /**
+     * 한도 규칙만 바꾼 표준 룰(포털 Phase 8 데모 — 기간을 나눠 CUT과 DEFER_AFTER_FY를 한 스트림에 둔다). 규칙은 체결일로 단건 해석되므로
+     * 기간이 겹치면 안 된다. 그 밖의 룰은 {@link #standardRules()}와 같다.
+     */
+    public static InMemoryRuleStore standardRules(List<LimitRule> limitRules) {
         InMemoryRuleStore store = new InMemoryRuleStore();
         long id = 1000;
 
@@ -76,10 +91,8 @@ public final class RuleFixtures {
         store.addPayoutRate(payout(GRADE_JUNIOR, CommTypeCode.RENEWAL, "0.7"));
         store.addPayoutRate(payout(GRADE_JUNIOR, CommTypeCode.INCENTIVE, "1.0"));
 
-        // 1200%룰: GA→설계사 2026-07-01 체결분부터, 초년도 12개월, 초과분 이연, 환수 시 복원
-        store.addLimitRule(new LimitRule(1, ChannelType.GA_TO_AGENT, new BigDecimal("12.00"),
-                12, OverLimitAction.DEFER_AFTER_FY, true,
-                EffectivePeriod.from(GA_LIMIT_FROM)));
+        // 1200%룰(기본은 standardLimitRule 하나)
+        limitRules.forEach(store::addLimitRule);
 
         // 분급 커브 — 커브 자체가 데이터: 2027 체결분 4년, 2029 체결분 7년 (로드맵 §1)
         store.addDeferralCurve(new DeferralCurve(1, "4년 분급(2027)",

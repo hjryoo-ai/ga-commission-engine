@@ -1,0 +1,15 @@
+[
+  {"case":"LIMIT_80","agentId":"A-2001","policyNo":"DEMO-S01","seqs":[12510]},
+  {"case":"LIMIT_95","agentId":"A-2003","policyNo":"DEMO-S02","seqs":[12556]},
+  {"case":"LIMIT_100_CUT","agentId":"A-2005","policyNo":"DEMO-S03","seqs":[742]},
+  {"case":"LIMIT_100_DEFER_AFTER_FY","agentId":"A-2007","policyNo":"DEMO-S04","seqs":[1477]},
+  {"case":"DEFERRAL_HELD","agentId":"A-2009","policyNo":"DEMO-S05","seqs":[17102]},
+  {"case":"BOUNDARY_LIMIT_20260630","agentId":"A-2011","policyNo":"DEMO-S06","seqs":[455]},
+  {"case":"BOUNDARY_LIMIT_20260701","agentId":"A-2013","policyNo":"DEMO-S07","seqs":[456]},
+  {"case":"BOUNDARY_CURVE_20261231","agentId":"A-2015","policyNo":"DEMO-S08","seqs":[2854]},
+  {"case":"BOUNDARY_CURVE_20270101","agentId":"A-2017","policyNo":"DEMO-S09","seqs":[2861]},
+  {"case":"REPRICE","agentId":"A-2019","policyNo":"DEMO-S10","seqs":[2509]},
+  {"case":"RECEIVABLE_CARRIED","agentId":"A-2009","policyNo":"","seqs":[1602,2045]},
+  {"case":"REVERSAL_REBOOK","agentId":"A-2021","policyNo":"DEMO-S11","seqs":[1333,1335]},
+  {"case":"ADJUSTMENT_AFTER_CLOSE","agentId":"A-2023","policyNo":"DEMO-S12","seqs":[1984]}
+]
