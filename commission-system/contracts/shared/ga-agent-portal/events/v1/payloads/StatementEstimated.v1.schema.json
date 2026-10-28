@@ -24,7 +24,7 @@
     },
     "gross": {
       "$ref": "../defs.schema.json#/$defs/won",
-      "description": "Σ 그 달 CommissionCalculated 라인 중 commType ∉ {CLAWBACK, ADJUSTMENT}의 amount(정수 원) — 전 상태 합산(취소 원본·reversal 모두 포함, 상태로 거르지 않는다). 정정은 adjustment로만 센다. 포털 earnings_month.gross와 같은 정의(설계서 §5·§6.6)"
+      "description": "Σ 그 달 CommissionCalculated 라인 중 commType ∉ {CLAWBACK, ADJUSTMENT}의 amount(정수 원) — 전 상태 합산(취소 원본·reversal 모두 포함, 상태로 거르지 않는다). 정정은 adjustment로만 센다. 잠정 명세는 여기에 그 달 도래 예정 분급(아직 CommissionCalculated로 발행되지 않은 DEFERRED 몫)의 미리보기를 더할 수 있다 — 그래서 포털 earnings_month.gross와 같다는 보장이 없다(v1.4.1, DD-19 — 설계서 §6.6 대사는 잠정 달의 gross를 비교하지 않는다). basisSeq는 하한이다"
     },
     "clawbackOffset": {
       "$ref": "../defs.schema.json#/$defs/won",
