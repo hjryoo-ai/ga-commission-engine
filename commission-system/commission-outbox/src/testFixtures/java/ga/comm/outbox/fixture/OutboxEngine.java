@@ -108,6 +108,15 @@ public final class OutboxEngine {
     private final EstimateReads estimateReads;
 
     public OutboxEngine(RuleRepository rules, AgentDirectory directory, Raw raw, Clock clock, Supplier<UUID> ids) {
+        this(rules, directory, raw, clock, ids, (policyNo, asOf) -> true);
+    }
+
+    /**
+     * 유지 판정을 주입한 조립(포털 Phase 8 데모 — 분급 도래 때 유지가 아닌 계약을 HELD로). 기본 조립은 언제나 유지({@code true})라
+     * 기존 골든 스트림의 바이트가 그대로다.
+     */
+    public OutboxEngine(RuleRepository rules, AgentDirectory directory, Raw raw, Clock clock, Supplier<UUID> ids,
+                        PolicyStatusProvider policyStatus) {
         this.raw = raw;
         publisher = new OutboxPublisher(new ValidatingOutboxStore(raw.outbox()), clock, ids);
         stores = PublishingStores.wrap(publisher, raw.events(), raw.calcs(), raw.ledgers(), raw.schedules(), raw.receivables(),
@@ -117,7 +126,6 @@ public final class OutboxEngine {
         calcs = new ClosedMonthGuardedCalcStore(stores.calcs(), raw.close());
         CloseStatusProvider closeStatus = SettleCloseStore.asProvider(raw.close());
         CloseYmResolver resolver = event -> closeStatus.attributionFor(CloseYm.from(event.eventDate()));
-        PolicyStatusProvider policyStatus = (policyNo, asOf) -> true;
         releaseService = new DeferralReleaseService(stores.schedules(), calcs, policyStatus);
         WithholdingTaxPolicy taxPolicy = WithholdingTaxPolicy.STANDARD_3_3;   // 지급 런과 잠정 명세가 같은 인스턴스(E2 P9)
 
